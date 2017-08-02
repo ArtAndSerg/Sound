@@ -1,6 +1,6 @@
 object Form1: TForm1
-  Left = 192
-  Top = 125
+  Left = 892
+  Top = 295
   Width = 548
   Height = 429
   Caption = 'Form1'
@@ -14,8 +14,8 @@ object Form1: TForm1
   PixelsPerInch = 96
   TextHeight = 13
   object Button1: TButton
-    Left = 16
-    Top = 16
+    Left = 32
+    Top = 24
     Width = 75
     Height = 25
     Caption = 'Button1'
@@ -23,8 +23,8 @@ object Form1: TForm1
     OnClick = Button1Click
   end
   object Chart1: TChart
-    Left = 24
-    Top = 64
+    Left = 56
+    Top = 48
     Width = 400
     Height = 250
     BackWall.Brush.Color = clWhite

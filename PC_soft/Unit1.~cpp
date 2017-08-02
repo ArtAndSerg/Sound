@@ -25,7 +25,7 @@ void __fastcall TForm1::Button1Click(TObject *Sender)
 
    while (i++ < 3000 && FileRead(f, (void*)&tmp, 2))
    {
-     tmp = ((signed short)tmp)/128 + 512;
+     tmp = ((signed short)tmp)/64 + 512;
      d =  tmp;
      Series1->Add(d);
    }
