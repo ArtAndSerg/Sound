@@ -1,6 +1,6 @@
 .idea/
-\sound103\EWARM\sound103\*
-PC_soft\*.exe
-PC_soft\*.~*
-PC_soft\*.tds
-PC_soft\*.obj
+sound103/EWARM/sound103/*
+PC_soft/*.exe
+PC_soft/*.~*
+PC_soft/*.tds
+PC_soft/*.obj
