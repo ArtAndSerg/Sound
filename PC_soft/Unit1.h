@@ -13,6 +13,7 @@
 #include <TeEngine.hpp>
 #include <TeeProcs.hpp>
 #include <Menus.hpp>
+#include <Dialogs.hpp>
 //---------------------------------------------------------------------------
 class TForm1 : public TForm
 {
@@ -24,8 +25,20 @@ __published:	// IDE-managed Components
         TFastLineSeries *FastLineSeries1;
         TMainMenu *MainMenu1;
         TMenuItem *Go1;
-        void __fastcall Button1Click(TObject *Sender);
-        void __fastcall Go1Click(TObject *Sender);
+        TMenuItem *N1;
+        TMenuItem *N2;
+        TMenuItem *WAV1;
+        TMenuItem *ADPCM1;
+        TMenuItem *N3;
+        TMenuItem *N4;
+        TOpenDialog *OpenDialog1;
+        TSaveDialog *SaveDialog1;
+        void __fastcall N4Click(TObject *Sender);
+        void __fastcall WAV1Click(TObject *Sender);
+        void __fastcall FormClose(TObject *Sender, TCloseAction &Action);
+        void __fastcall ADPCM1Click(TObject *Sender);
+        void __fastcall N1Click(TObject *Sender);
+        void __fastcall N3Click(TObject *Sender);
 private:	// User declarations
 public:		// User declarations
         __fastcall TForm1(TComponent* Owner);

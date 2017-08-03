@@ -90,12 +90,12 @@ void SPIFlashEndWrite(void)
       HAL_SPI_Receive(hspi, &tmp, 1, HAL_MAX_DELAY); 
       if (tmp)
       {
-        osDelay(0);
+        //osDelay(0);
       }
     } while(tmp & BUSY);
     if (d > 1)
     {
-       osDelay(0); 
+       //osDelay(0); 
     }
     // Deactivate chip select
     FLASH_CS_HI();   

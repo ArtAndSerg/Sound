@@ -1,0 +1,13 @@
+del *.~*
+del *.tds
+del *.obj
+del *.dsk
+del *.ilc
+del *.ild
+del *.ilf
+del *.ils
+del *.ddp
+del *.#*
+del *.csm
+del FLASH_dumps\*.bin
+del Logs\*.txt
