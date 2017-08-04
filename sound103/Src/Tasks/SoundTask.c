@@ -6,10 +6,11 @@
 #include "usb_device.h"
 #include "SoundTask.h"
 
-#define SOUND_BUF_SIZE 800
+#define SOUND_BUF_SIZE 2048
 
 extern TIM_HandleTypeDef htim2;
 extern osSemaphoreId DMAsoundSemHandle;
+
 char SD_Path[4] = "0:\\";
 FATFS fileSystem;
 FIL f;
@@ -42,20 +43,24 @@ const int StepSizeTable[89] = {
 };
 
 void SoundTaskInit(void)
-{ 
+{   
+//return;
+    osDelay(1000);
     /* init code for FATFS */
     MX_FATFS_Init();
     f_mount(&fileSystem, SD_Path, 1);
     f_open(&f, "lenin.raw", FA_READ);
     xSemaphoreTake(DMAsoundSemHandle, 0);
+    HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, (uint32_t *)Buffer, SOUND_BUF_SIZE);
 }
 //---------------------------------------------------------------------------
 
 void SoundTask(void)
 {
-  unsigned int n, sum = 0;
-  
-  if (xSemaphoreTake(DMAsoundSemHandle, 1000) == pdPASS){
+ //return;
+    unsigned int n, sum = 0;
+  osDelay(1);
+  if (xSemaphoreTake(DMAsoundSemHandle, 1000) == pdPASS) {
       if (htim2.hdma[1]->State == HAL_DMA_STATE_READY_HALF) {
           overflow = 0;
           f_read(&f, (void*)&Buffer[(7*SOUND_BUF_SIZE)/16], SOUND_BUF_SIZE/8, &n);         
@@ -94,9 +99,8 @@ void SoundTask(void)
           predsample = 0;	/* Output of ADPCM predictor */
           index = 0;		/* Index into step size table */
       }
-  } else {
-      HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, (uint32_t *)Buffer, SOUND_BUF_SIZE);
-  }
+   }
+  
 
 }
 //---------------------------------------------------------------------------

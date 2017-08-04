@@ -6,6 +6,10 @@
 #include "SPI_Flash.h"
 
 extern SPI_HandleTypeDef hspi1;
+extern signed short Buffer[2048+1];
+
+BYTE *BufferRMW = (void*)Buffer;
+
 SPI_HandleTypeDef *hspi = &hspi1;
 
 DWORD dwCurrentAddr;
@@ -28,6 +32,7 @@ void SPIFlashInit(void)
     HAL_SPI_Transmit(hspi, buf, 2, HAL_MAX_DELAY); // Clear all block protect bits
     FLASH_CS_HI();
     dwCurrentAddr = SPI_FLASH_SIZE;
+   // xSemaphoreTake(FlashSemHandle, 0);
 }
 //---------------------------------------------------------------------------
 
@@ -102,18 +107,40 @@ void SPIFlashEndWrite(void)
 }
 //--------------------------------------------------------------------
 
+
+int SPIFlashWriteArrayRMW(DWORD Addr, BYTE *vData, WORD wLen)
+{
+    DWORD addr;
+    int len;
+    if(Addr & SPI_FLASH_SECTOR_MASK) {
+       SPIFlashReadArray(Addr - (Addr & SPI_FLASH_SECTOR_MASK), BufferRMW, SPI_FLASH_SECTOR_SIZE);
+       addr = Addr & SPI_FLASH_SECTOR_MASK;
+       len = SPI_FLASH_SECTOR_SIZE - (Addr & SPI_FLASH_SECTOR_MASK);
+       memcpy((void*)&BufferRMW[Addr & SPI_FLASH_SECTOR_MASK], (void*)vData, wLen);
+       SPIFlashWriteArray(Addr - (Addr & SPI_FLASH_SECTOR_MASK), BufferRMW, SPI_FLASH_SECTOR_SIZE);
+    } else {
+    
+       SPIFlashWriteArray(Addr, vData, wLen);
+    }
+    
+
+    return wLen;
+}
+//--------------------------------------------------------------------
+
+
 int SPIFlashWriteArray(DWORD Addr, BYTE *vData, WORD wLen)
 {
-   // Ignore operations when the destination is NULL or nothing to read
+    // Ignore operations when the destination is NULL or nothing to read
     if(vData != NULL && wLen && Addr < SPI_FLASH_SIZE) {
         SPIFlashBeginWrite(Addr);
         SPIFlashWrite(vData, wLen);
         SPIFlashEndWrite();
-        return wLen;
     }
     else {
-        return 0;
+        wLen = 0;
     }
+    return wLen;
 }
 //--------------------------------------------------------------------
 

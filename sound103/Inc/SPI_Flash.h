@@ -66,6 +66,7 @@ void SPIFlashBeginWrite(DWORD dwAddr);
 void SPIFlashWrite(BYTE *buf, int count);
 void SPIFlashEndWrite(void);
 int  SPIFlashWriteArray(DWORD Addr, BYTE *vData, WORD wLen);
+int  SPIFlashWriteArrayRMW(DWORD Addr, BYTE *vData, WORD wLen);
 void SPIFlashEraseSector(DWORD dwAddr);
 void SPIFlashEraseAllChip(void);
 

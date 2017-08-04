@@ -50,6 +50,7 @@
 #include "usbd_storage_if.h"
 /* USER CODE BEGIN INCLUDE */
 #include "SPI_Flash.h"
+
 /* USER CODE END INCLUDE */
 
 /** @addtogroup STM32_USB_OTG_DEVICE_LIBRARY
@@ -229,7 +230,7 @@ int8_t  STORAGE_IsReady_FS (uint8_t lun)
 int8_t  STORAGE_IsWriteProtected_FS (uint8_t lun)
 {
   /* USER CODE BEGIN 5 */ 
-  return (USBD_OK);
+ return (USBD_OK);
   /* USER CODE END 5 */ 
 }
 
@@ -264,7 +265,8 @@ int8_t STORAGE_Write_FS (uint8_t lun,
                          uint16_t blk_len)
 {
   /* USER CODE BEGIN 7 */ 
-  SPIFlashWriteArray(blk_addr * STORAGE_BLK_SIZ, buf, blk_len * STORAGE_BLK_SIZ); 
+  SPIFlashWriteArrayRMW(blk_addr * STORAGE_BLK_SIZ, buf, blk_len * STORAGE_BLK_SIZ); 
+  HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
   return (USBD_OK);
   /* USER CODE END 7 */ 
 }

@@ -137,7 +137,7 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
   SPIFlashInit();
-  
+ // SPIFlashEraseAllChip();
   
   
   /* USER CODE END 2 */
@@ -165,7 +165,7 @@ int main(void)
   MainTaskHandle = osThreadCreate(osThread(MainTask), NULL);
 
   /* definition and creation of SoundTask */
-  osThreadDef(SoundTask, StartSound, osPriorityHigh, 0, 512);
+  osThreadDef(SoundTask, StartSound, osPriorityHigh, 0, 256);
   SoundTaskHandle = osThreadCreate(osThread(SoundTask), NULL);
 
   /* definition and creation of WiFiTask */
