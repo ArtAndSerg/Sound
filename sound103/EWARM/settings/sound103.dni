@@ -1,10 +1,10 @@
 [StLinkDriver]
-stlinkserialNo=2798FD0D
+stlinkserialNo=EE5626A6
 stlinkfoundProbes=
 CStepIntDis=_ 0
 LeaveTargetRunning=_ 0
 [DebugChecksum]
-Checksum=-552907331
+Checksum=-763408804
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -104,8 +104,7 @@ ShowTiming=1
 [Disassemble mode]
 mode=0
 [Breakpoints2]
-Bp0=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\Src\usbd_storage_if.c}.189.3" 0 0 1 "" 0 "" 0
-Count=1
+Count=0
 [Aliases]
 Count=0
 SuppressDialog=0

@@ -79,7 +79,9 @@
 #define STORAGE_BLK_SIZ                  0x200
 
 /* USER CODE BEGIN PRIVATE_DEFINES */
+#define STORAGE_BLK_SIZ                  SPI_FLASH_SECTOR_SIZE
 #define STORAGE_BLK_NBR                  (SPI_FLASH_SIZE / STORAGE_BLK_SIZ)  
+
 /* USER CODE END PRIVATE_DEFINES */
   
 /**
@@ -265,7 +267,7 @@ int8_t STORAGE_Write_FS (uint8_t lun,
                          uint16_t blk_len)
 {
   /* USER CODE BEGIN 7 */ 
-  SPIFlashWriteArrayRMW(blk_addr * STORAGE_BLK_SIZ, buf, blk_len * STORAGE_BLK_SIZ); 
+  SPIFlashWriteArray(blk_addr * STORAGE_BLK_SIZ, buf, blk_len * STORAGE_BLK_SIZ); 
   HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
   return (USBD_OK);
   /* USER CODE END 7 */ 

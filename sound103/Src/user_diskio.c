@@ -149,7 +149,7 @@ DRESULT USER_read (
     DRESULT res = RES_NOTRDY;
    // while(!uxSemaphoreGetCount(FlashSemHandle));
     HAL_NVIC_DisableIRQ(USB_LP_CAN1_RX0_IRQn);
-    SPIFlashReadArray(sector * 512, buff, count * 512); 
+    SPIFlashReadArray(sector * _MAX_SS, buff, count * _MAX_SS); 
     HAL_NVIC_EnableIRQ(USB_LP_CAN1_RX0_IRQn);
     return RES_OK;
   /* USER CODE END READ */
@@ -174,7 +174,7 @@ DRESULT USER_write (
   /* USER CODE BEGIN WRITE */
   /* USER CODE HERE */
     HAL_NVIC_DisableIRQ(USB_LP_CAN1_RX0_IRQn);
-    SPIFlashWriteArray(sector * 512, (BYTE*)buff, count * 512); 
+    SPIFlashWriteArray(sector * _MAX_SS, (BYTE*)buff, count * _MAX_SS); 
     HAL_NVIC_EnableIRQ(USB_LP_CAN1_RX0_IRQn);
     return RES_OK;
   /* USER CODE END WRITE */

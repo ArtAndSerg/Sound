@@ -6,10 +6,6 @@
 #include "SPI_Flash.h"
 
 extern SPI_HandleTypeDef hspi1;
-extern signed short Buffer[2048+1];
-
-BYTE *BufferRMW = (void*)Buffer;
-
 SPI_HandleTypeDef *hspi = &hspi1;
 
 DWORD dwCurrentAddr;
@@ -104,27 +100,6 @@ void SPIFlashEndWrite(void)
     }
     // Deactivate chip select
     FLASH_CS_HI();   
-}
-//--------------------------------------------------------------------
-
-
-int SPIFlashWriteArrayRMW(DWORD Addr, BYTE *vData, WORD wLen)
-{
-    DWORD addr;
-    int len;
-    if(Addr & SPI_FLASH_SECTOR_MASK) {
-       SPIFlashReadArray(Addr - (Addr & SPI_FLASH_SECTOR_MASK), BufferRMW, SPI_FLASH_SECTOR_SIZE);
-       addr = Addr & SPI_FLASH_SECTOR_MASK;
-       len = SPI_FLASH_SECTOR_SIZE - (Addr & SPI_FLASH_SECTOR_MASK);
-       memcpy((void*)&BufferRMW[Addr & SPI_FLASH_SECTOR_MASK], (void*)vData, wLen);
-       SPIFlashWriteArray(Addr - (Addr & SPI_FLASH_SECTOR_MASK), BufferRMW, SPI_FLASH_SECTOR_SIZE);
-    } else {
-    
-       SPIFlashWriteArray(Addr, vData, wLen);
-    }
-    
-
-    return wLen;
 }
 //--------------------------------------------------------------------
 

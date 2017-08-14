@@ -3,18 +3,19 @@
 #include "stm32f1xx_hal.h"
 #include "cmsis_os.h"
 #include "fatfs.h"
-#include "usb_device.h"
+#include "usbd_conf.h"
+#include "usbd_msc.h"
 #include "SoundTask.h"
 
-#define SOUND_BUF_SIZE 2048
+#define SOUND_BUF_SIZE    (8*(sizeof(USBD_MSC_BOT_HandleTypeDef)/16))
 
 extern TIM_HandleTypeDef htim2;
 extern osSemaphoreId DMAsoundSemHandle;
 
 char SD_Path[4] = "0:\\";
-FATFS fileSystem;
+FATFS fileSystem; 
 FIL f;
-signed short Buffer[SOUND_BUF_SIZE+1];
+signed short *Buffer; 
 volatile int overflow = 0;
 
 signed short ADPCMDecoder(unsigned char code);
@@ -43,8 +44,10 @@ const int StepSizeTable[89] = {
 };
 
 void SoundTaskInit(void)
-{   
-//return;
+{    
+   // return;
+    int s = SOUND_BUF_SIZE;
+    Buffer = (signed short*)USBD_static_malloc(SOUND_BUF_SIZE);
     osDelay(1000);
     /* init code for FATFS */
     MX_FATFS_Init();
@@ -57,9 +60,10 @@ void SoundTaskInit(void)
 
 void SoundTask(void)
 {
- //return;
-    unsigned int n, sum = 0;
-  osDelay(1);
+  //return;
+  
+  unsigned int n, sum = 0;
+  //osDelay(1);
   if (xSemaphoreTake(DMAsoundSemHandle, 1000) == pdPASS) {
       if (htim2.hdma[1]->State == HAL_DMA_STATE_READY_HALF) {
           overflow = 0;
@@ -75,7 +79,7 @@ void SoundTask(void)
           Buffer[SOUND_BUF_SIZE/2-1] = Buffer[SOUND_BUF_SIZE/2-2];
           
           if (overflow) {
-             osDelay(1);
+             osDelay(0);
           }
           
       } else {
@@ -90,7 +94,7 @@ void SoundTask(void)
           Buffer[SOUND_BUF_SIZE-1] = Buffer[SOUND_BUF_SIZE-2];
                     
           if (overflow) {
-             osDelay(1);
+             osDelay(0);
           }
       }
       if (!n) {
