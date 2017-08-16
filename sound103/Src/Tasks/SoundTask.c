@@ -10,7 +10,8 @@
 #define SOUND_BUF_SIZE    (8*(sizeof(USBD_MSC_BOT_HandleTypeDef)/16))
 
 extern TIM_HandleTypeDef htim2;
-extern osSemaphoreId DMAsoundSemHandle;
+extern osSemaphoreId DMAsoundSemHandle, doPlayingSemHandle;
+extern osThreadId SoundTaskHandle;
 
 char SD_Path[4] = "0:\\";
 FATFS fileSystem; 
@@ -48,64 +49,85 @@ void SoundTaskInit(void)
    // return;
     int s = SOUND_BUF_SIZE;
     Buffer = (signed short*)USBD_static_malloc(SOUND_BUF_SIZE);
-    osDelay(1000);
+    //osDelay(5000);
     /* init code for FATFS */
     MX_FATFS_Init();
     f_mount(&fileSystem, SD_Path, 1);
-    f_open(&f, "lenin.raw", FA_READ);
     xSemaphoreTake(DMAsoundSemHandle, 0);
-    HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, (uint32_t *)Buffer, SOUND_BUF_SIZE);
+    xSemaphoreTake(doPlayingSemHandle, 0);
+    shutUp();
 }
 //---------------------------------------------------------------------------
 
 void SoundTask(void)
 {
-  //return;
-  
-  unsigned int n, sum = 0;
-  //osDelay(1);
+  static unsigned int n = SOUND_BUF_SIZE/8;
   if (xSemaphoreTake(DMAsoundSemHandle, 1000) == pdPASS) {
+ 
       if (htim2.hdma[1]->State == HAL_DMA_STATE_READY_HALF) {
           overflow = 0;
-          f_read(&f, (void*)&Buffer[(7*SOUND_BUF_SIZE)/16], SOUND_BUF_SIZE/8, &n);         
-          DecodeFrom_ADPCM_to_WAV(&Buffer[SOUND_BUF_SIZE/4], (unsigned char*)&Buffer[(7*SOUND_BUF_SIZE)/16], n);
-          
-          for (int i = 0; i < SOUND_BUF_SIZE/4; i++) {
+          f_read(&f, (void*)&Buffer[(7*SOUND_BUF_SIZE)/16], SOUND_BUF_SIZE/8, &n);
+          DecodeFrom_ADPCM_to_WAV(&Buffer[SOUND_BUF_SIZE/4], (unsigned char*)&Buffer[(7*n)/2], n);
+          for (int i = 0; i < 2*n; i++) {
               Buffer[i<<1] = ((Buffer[i + SOUND_BUF_SIZE/4]) /64) + 512;
               Buffer[(i<<1)+1] = ((Buffer[i + SOUND_BUF_SIZE/4] + Buffer[i+1 + SOUND_BUF_SIZE/4]) / 128) + 512;
-              //sum += Buffer[i<<1];
-              HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, Buffer[i] < 512+400 && Buffer[i] > 512-400);
           }
           Buffer[SOUND_BUF_SIZE/2-1] = Buffer[SOUND_BUF_SIZE/2-2];
-          
+          HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, 1);
           if (overflow) {
-             osDelay(0);
+             HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, 0);
           }
           
       } else {
           overflow = 0;
           f_read(&f, (void*)&Buffer[(15*SOUND_BUF_SIZE)/16], SOUND_BUF_SIZE/8, &n);
-          DecodeFrom_ADPCM_to_WAV(&Buffer[3*(SOUND_BUF_SIZE/4)], (unsigned char*)&Buffer[(15*SOUND_BUF_SIZE)/16], n);
-          for (int i = 0; i < SOUND_BUF_SIZE/4; i++) {
+          DecodeFrom_ADPCM_to_WAV(&Buffer[3*(SOUND_BUF_SIZE/4)], (unsigned char*)&Buffer[(15*n)/2], n);
+          for (int i = 0; i < 2*n; i++) {
               Buffer[(i<<1) + SOUND_BUF_SIZE/2]   = ((Buffer[i + (3*SOUND_BUF_SIZE)/4]) / 64) + 512;
               Buffer[(i<<1)+1 + SOUND_BUF_SIZE/2] = ((Buffer[i + (3*SOUND_BUF_SIZE)/4] + Buffer[i + 1 + (3*SOUND_BUF_SIZE)/4]) / 128) + 512;
-              HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, Buffer[i+SOUND_BUF_SIZE/2] < 512+400 && Buffer[i+SOUND_BUF_SIZE/2] > 512-400);
           }
           Buffer[SOUND_BUF_SIZE-1] = Buffer[SOUND_BUF_SIZE-2];
-                    
+          HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, 1);          
           if (overflow) {
-             osDelay(0);
+             HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, 0);
           }
+          
+          if (n < SOUND_BUF_SIZE/8) {
+          n = SOUND_BUF_SIZE/8;
+          shutUp();     
+          return;
       }
-      if (!n) {
-          f_close(&f);
-          f_open(&f, "lenin.raw", FA_READ);
-          predsample = 0;	/* Output of ADPCM predictor */
-          index = 0;		/* Index into step size table */
+          
       }
    }
-  
+}
+//---------------------------------------------------------------------------
+ 
+int playSound(char *fileName)
+{
+    xSemaphoreTake(doPlayingSemHandle, portMAX_DELAY);
+    if (f_open(&f, fileName, FA_READ) != FR_OK) {
+        xSemaphoreGive(doPlayingSemHandle);
+        return 0;
+    }
+    memset (Buffer, 0x7F, SOUND_BUF_SIZE*2);
+    predsample = 0;	/* Output of ADPCM predictor */
+    index = 0;		/* Index into step size table */
+    xSemaphoreGive(DMAsoundSemHandle);
+    htim2.hdma[1]->State = HAL_DMA_STATE_READY_HALF;
+    SoundTask();
+    vTaskResume(SoundTaskHandle);
+    HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, (uint32_t *)Buffer, SOUND_BUF_SIZE);
+    //xSemaphoreTake(DMAsoundSemHandle, 0);
+    return 1;
+}
+//---------------------------------------------------------------------------
 
+void shutUp(void){
+    HAL_TIM_PWM_Stop_DMA(&htim2, TIM_CHANNEL_1);
+    f_close(&f);
+    xSemaphoreGive(doPlayingSemHandle);
+    vTaskSuspend(SoundTaskHandle);
 }
 //---------------------------------------------------------------------------
 
