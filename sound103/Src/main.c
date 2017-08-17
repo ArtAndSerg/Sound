@@ -71,7 +71,6 @@ osThreadId SoundTaskHandle;
 osThreadId WiFiTaskHandle;
 osThreadId GsmTaskHandle;
 osSemaphoreId DMAsoundSemHandle;
-osSemaphoreId doPlayingSemHandle;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -152,10 +151,6 @@ int main(void)
   osSemaphoreDef(DMAsoundSem);
   DMAsoundSemHandle = osSemaphoreCreate(osSemaphore(DMAsoundSem), 1);
 
-  /* definition and creation of doPlayingSem */
-  osSemaphoreDef(doPlayingSem);
-  doPlayingSemHandle = osSemaphoreCreate(osSemaphore(doPlayingSem), 1);
-
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
@@ -170,7 +165,7 @@ int main(void)
   MainTaskHandle = osThreadCreate(osThread(MainTask), NULL);
 
   /* definition and creation of SoundTask */
-  osThreadDef(SoundTask, StartSound, osPriorityRealtime, 0, 128);
+  osThreadDef(SoundTask, StartSound, osPriorityHigh, 0, 256);
   SoundTaskHandle = osThreadCreate(osThread(SoundTask), NULL);
 
   /* definition and creation of WiFiTask */
@@ -411,12 +406,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(MEM_CS_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : JUMPER_Pin */
-  GPIO_InitStruct.Pin = JUMPER_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(JUMPER_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : VOLUME_4K_Pin VOLUME_2K_Pin VOLUME_1K_Pin */
   GPIO_InitStruct.Pin = VOLUME_4K_Pin|VOLUME_2K_Pin|VOLUME_1K_Pin;

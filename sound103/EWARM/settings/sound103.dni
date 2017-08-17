@@ -4,7 +4,7 @@ stlinkfoundProbes=
 CStepIntDis=_ 0
 LeaveTargetRunning=_ 0
 [DebugChecksum]
-Checksum=1278549186
+Checksum=-763408804
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -42,9 +42,8 @@ ITMportsTermIO=0
 ITMportsLogFile=0
 ITMlogFile=$PROJ_DIR$\ITM.log
 [array_types]
-Fmt0=uint32_t[1052]	4	0
-Fmt1=unsigned short[100]	5	0
-Fmt2=unsigned short[500]	5	0
+Fmt0=unsigned short[100]	5	0
+Fmt1=unsigned short[500]	5	0
 [Trace2]
 Enabled=0
 ShowSource=0

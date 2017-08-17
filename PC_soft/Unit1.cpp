@@ -217,21 +217,20 @@ void __fastcall TForm1::WAV1Click(TObject *Sender)
        if (wavData != NULL) {
            delete wavData;
        }
-       wavData = new signed short [6400 + size / sizeof(signed short)];
-       memset(wavData, 0, 6400 + size / sizeof(signed short));
+       wavData = new signed short [size / sizeof(signed short)];
        if (wavData == NULL) {
             Application->MessageBoxA("Ошибка выделения памяти для WAV!", "В Н И М А Н И Е !", MB_OK);
             FileClose(f);
             return;
        }
-       if (FileRead(f, (void*)&wavData[3200], size) != size) {
+       if (FileRead(f, (void*)wavData, size) != size) {
             Application->MessageBoxA("Ошибка чтения файла!", "В Н И М А Н И Е !", MB_OK);
             FileClose(f);
             return;
        }
        FileClose(f);
 
-       size += 6400;
+
        if (adpcmData != NULL) {
            delete adpcmData;
        }
@@ -309,11 +308,10 @@ void __fastcall TForm1::N1Click(TObject *Sender)
    static int start = 0;
    int step = 320000;
    if (!sizeWavInBytes) return;
-   if (step > sizeWavInBytes/2) step = sizeWavInBytes/2;
-   
+
    if (Sender == N1) {
       start += step;
-      if (start >= sizeWavInBytes/2) start = 0;
+      if (start > sizeWavInBytes/2) start = 0;
    } else {
       start -= step;
       if (start < 0) start = sizeWavInBytes/2;
