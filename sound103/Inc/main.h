@@ -60,6 +60,8 @@
 #define LED_RED_GPIO_Port GPIOC
 #define MEM_CS_Pin GPIO_PIN_4
 #define MEM_CS_GPIO_Port GPIOA
+#define JUMPER_Pin GPIO_PIN_2
+#define JUMPER_GPIO_Port GPIOB
 #define VOLUME_4K_Pin GPIO_PIN_15
 #define VOLUME_4K_GPIO_Port GPIOB
 #define MEM_WP_Pin GPIO_PIN_6

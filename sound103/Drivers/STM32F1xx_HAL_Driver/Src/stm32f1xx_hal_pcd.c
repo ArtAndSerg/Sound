@@ -635,6 +635,7 @@ void HAL_PCD_IRQHandler(PCD_HandleTypeDef *hpcd)
   {
     /* clear ESOF flag in ISTR */
     __HAL_PCD_CLEAR_FLAG(hpcd, USB_ISTR_ESOF); 
+    
   }
 }
 #endif /* USB */

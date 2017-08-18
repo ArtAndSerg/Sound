@@ -145,6 +145,20 @@ void SPIFlashReadArray(DWORD dwAddr, BYTE *vData, WORD wLen)
 }
 //----------------------------------------------------------------------------
 
+
+void SPIFlashReadArrayDMA(DWORD dwAddr, BYTE *vData, WORD wLen)
+{
+    // Ignore operations when the destination is NULL or nothing to read
+    if(vData != NULL && wLen && dwAddr < SPI_FLASH_SIZE) {
+        SPIFlashBeginRead(dwAddr);
+        // Read data
+        HAL_SPI_Receive_DMA(hspi, vData, wLen); 
+        while(hspi->State != HAL_SPI_STATE_READY);
+        SPIFlashEndRead();
+    }
+}
+//----------------------------------------------------------------------------
+
 unsigned char SPIFlashReadByte(void)
 {
     unsigned char result;;

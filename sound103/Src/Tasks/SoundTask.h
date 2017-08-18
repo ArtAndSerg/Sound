@@ -5,6 +5,7 @@
 void SoundTaskInit(void);
 void SoundTask(void);
 void sound_IRQ_DMA(void);
-
+int  playSound(char *fileName);
+void shutUp(void);
 #endif
 

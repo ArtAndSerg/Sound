@@ -62,6 +62,8 @@
 CRC_HandleTypeDef hcrc;
 
 SPI_HandleTypeDef hspi1;
+DMA_HandleTypeDef hdma_spi1_rx;
+DMA_HandleTypeDef hdma_spi1_tx;
 
 TIM_HandleTypeDef htim2;
 DMA_HandleTypeDef hdma_tim2_ch1;
@@ -70,11 +72,12 @@ osThreadId MainTaskHandle;
 osThreadId SoundTaskHandle;
 osThreadId WiFiTaskHandle;
 osThreadId GsmTaskHandle;
-osSemaphoreId DMAsoundSemHandle;
+osSemaphoreId dmaSoundSemHandle;
+osSemaphoreId doPlayingSemHandle;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-
+volatile int flagUSBconnected = 0, flagProgrammRunning = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -104,7 +107,7 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
 int main(void)
 {
-
+  int timerUSB; 
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -137,8 +140,19 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
   SPIFlashInit();
+ // while(1)
  // SPIFlashEraseAllChip();
-  
+  MX_USB_DEVICE_Init();
+  HAL_Delay(100);
+  do {
+      if (flagUSBconnected) {
+          flagUSBconnected = 0;
+          timerUSB = HAL_GetTick();
+      }
+  } while (HAL_GetTick() - timerUSB < 2000);
+  flagProgrammRunning = 1;
+  flagUSBconnected = 0;
+  HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, 1);  
   
   /* USER CODE END 2 */
 
@@ -147,9 +161,13 @@ int main(void)
   /* USER CODE END RTOS_MUTEX */
 
   /* Create the semaphores(s) */
-  /* definition and creation of DMAsoundSem */
-  osSemaphoreDef(DMAsoundSem);
-  DMAsoundSemHandle = osSemaphoreCreate(osSemaphore(DMAsoundSem), 1);
+  /* definition and creation of dmaSoundSem */
+  osSemaphoreDef(dmaSoundSem);
+  dmaSoundSemHandle = osSemaphoreCreate(osSemaphore(dmaSoundSem), 1);
+
+  /* definition and creation of doPlayingSem */
+  osSemaphoreDef(doPlayingSem);
+  doPlayingSemHandle = osSemaphoreCreate(osSemaphore(doPlayingSem), 1);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
@@ -165,7 +183,7 @@ int main(void)
   MainTaskHandle = osThreadCreate(osThread(MainTask), NULL);
 
   /* definition and creation of SoundTask */
-  osThreadDef(SoundTask, StartSound, osPriorityHigh, 0, 256);
+  osThreadDef(SoundTask, StartSound, osPriorityRealtime, 0, 128);
   SoundTaskHandle = osThreadCreate(osThread(SoundTask), NULL);
 
   /* definition and creation of WiFiTask */
@@ -363,6 +381,14 @@ static void MX_DMA_Init(void)
   /* DMA controller clock enable */
   __HAL_RCC_DMA1_CLK_ENABLE();
 
+  /* DMA interrupt init */
+  /* DMA1_Channel2_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel2_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel2_IRQn);
+  /* DMA1_Channel3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel3_IRQn);
+
 }
 
 /** Configure pins as 
@@ -407,6 +433,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(MEM_CS_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : JUMPER_Pin */
+  GPIO_InitStruct.Pin = JUMPER_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(JUMPER_GPIO_Port, &GPIO_InitStruct);
+
   /*Configure GPIO pins : VOLUME_4K_Pin VOLUME_2K_Pin VOLUME_1K_Pin */
   GPIO_InitStruct.Pin = VOLUME_4K_Pin|VOLUME_2K_Pin|VOLUME_1K_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
@@ -429,7 +461,7 @@ static void MX_GPIO_Init(void)
 void StartMainTask(void const * argument)
 {
   /* init code for USB_DEVICE */
-  MX_USB_DEVICE_Init();
+//  MX_USB_DEVICE_Init();
 
   /* init code for FATFS */
   MX_FATFS_Init();
