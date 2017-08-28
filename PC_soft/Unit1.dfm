@@ -1,6 +1,6 @@
 object Form1: TForm1
-  Left = 567
-  Top = 299
+  Left = 772
+  Top = 350
   Width = 548
   Height = 429
   Caption = #1050#1086#1085#1074#1077#1088#1090#1077#1088' '#1079#1074#1091#1082#1086#1074#1099#1093' '#1092#1072#1081#1083#1086#1074
@@ -138,6 +138,10 @@ object Form1: TForm1
       Caption = #1057#1087#1088#1072#1074#1082#1072
       ShortCut = 112
       OnClick = N4Click
+    end
+    object test1: TMenuItem
+      Caption = 'test'
+      OnClick = test1Click
     end
   end
   object OpenDialog1: TOpenDialog

@@ -1,0 +1,16 @@
+запрос   http://api.thingspeak.com/channels/321949/status/recent.json?key=9W4I06N6EXMLKC6E&status=true   
+http://api.thingspeak.com/channels/321949/status/last.xml?key=9W4I06N6EXMLKC6E&status=true&results=1
+
+
+запись   http://api.thingspeak.com/update?api_key=73OEW8DM71LHUP2L&status=GET%20/4iAk.txt%20HTTP/1.1%0D%0AHost:%20d.zaix.ru%0D%0A%0D%0A
+
+Channel ID: 321949
+Author: sounddevice  
+Pass:   5tgb#EDC
+
+
+
+http://d.zaix.ru/4iFr.txt
+http://d.zaix.ru/4iFv.txt
+
+
