@@ -8,16 +8,18 @@
 #include "SoundTask.h"
 #include "usbd_desc.h"
 
-#define SOUND_BUF_SIZE    (8*(sizeof(USBD_MSC_BOT_HandleTypeDef)/16))
+#define SOUND_BUF_SIZE     (8*(sizeof(USBD_MSC_BOT_HandleTypeDef)/16))
+#define DATA_TO_PLAY_SIZE  ((SOUND_BUF_SIZE/2) * sizeof(Buffer[0]))
 
-extern TIM_HandleTypeDef htim2;
-extern osSemaphoreId dmaSoundSemHandle, doPlayingSemHandle;
+extern I2C_HandleTypeDef hi2c2;
+extern osSemaphoreId dmaCpltSoundSemHandle, doPlayingSemHandle;
 extern osThreadId SoundTaskHandle;
 
 char SD_Path[4] = "0:\\";
 FATFS fileSystem; 
 FIL f;
 signed short *Buffer; 
+uint8_t *dataToPlay;
 volatile int overflow = 0; 
 
 signed short ADPCMDecoder(unsigned char code);
@@ -48,95 +50,91 @@ const int StepSizeTable[89] = {
 void SoundTaskInit(void)
 {    
    // return;
-    int s = SOUND_BUF_SIZE;
     Buffer = (signed short*)USBD_static_malloc(SOUND_BUF_SIZE);
-    
+    dataToPlay = (uint8_t*)&Buffer[0];
     /* init code for FATFS */
     MX_FATFS_Init();
     f_mount(&fileSystem, SD_Path, 1);
-   // xSemaphoreTake(dmaSoundSemHandle, 0);
+   // xSemaphoreTake(dmaSoundSemHandle, 0);    
     shutUp();
 }
 //---------------------------------------------------------------------------
 
 void SoundTask(void)
 {
-  static unsigned int n = SOUND_BUF_SIZE/8;
-  
-  if (xSemaphoreTake(dmaSoundSemHandle, portMAX_DELAY) == pdPASS) {
-          if (htim2.hdma[1]->State == HAL_DMA_STATE_READY_HALF) {
-              overflow = 0;
-              f_read(&f, (void*)&Buffer[(7*SOUND_BUF_SIZE)/16], SOUND_BUF_SIZE/8, &n);
-              DecodeFrom_ADPCM_to_WAV(&Buffer[SOUND_BUF_SIZE/4], (unsigned char*)&Buffer[(7*n)/2], n); // 1.3 ms
-              for (int i = 0; i < 2*n; i++) {                                                          // 0.6 ms
-                  Buffer[i<<1] = ((Buffer[i + SOUND_BUF_SIZE/4]) /64) + 512;
-                  Buffer[(i<<1)+1] = ((Buffer[i + SOUND_BUF_SIZE/4] + Buffer[i+1 + SOUND_BUF_SIZE/4]) / 128) + 512;
-              }
-              Buffer[SOUND_BUF_SIZE/2-1] = Buffer[SOUND_BUF_SIZE/2-2];
-              HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, 1);
-              if (overflow) {
-                 HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, 0);
-              }
-              
-          } else {
-              overflow = 0;
-              f_read(&f, (void*)&Buffer[(15*SOUND_BUF_SIZE)/16], SOUND_BUF_SIZE/8, &n);
-              DecodeFrom_ADPCM_to_WAV(&Buffer[3*(SOUND_BUF_SIZE/4)], (unsigned char*)&Buffer[(15*n)/2], n);
-              for (int i = 0; i < 2*n; i++) {
-                  Buffer[(i<<1) + SOUND_BUF_SIZE/2]   = ((Buffer[i + (3*SOUND_BUF_SIZE)/4]) / 64) + 512;
-                  Buffer[(i<<1)+1 + SOUND_BUF_SIZE/2] = ((Buffer[i + (3*SOUND_BUF_SIZE)/4] + Buffer[i + 1 + (3*SOUND_BUF_SIZE)/4]) / 128) + 512;
-              }
-              Buffer[SOUND_BUF_SIZE-1] = Buffer[SOUND_BUF_SIZE-2];
-              HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, 1);          
-              if (overflow) {
-                 HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, 0);
-              }
-              
-              if (n < SOUND_BUF_SIZE/8) {
-              n = SOUND_BUF_SIZE/8;
-              shutUp(); 
-              return;
-              }
-          }           
-  }   
+    static unsigned int n = SOUND_BUF_SIZE/8;
+    signed short tmp;
+            
+    if (xSemaphoreTake(dmaCpltSoundSemHandle, portMAX_DELAY) == pdPASS) {
+        if (dataToPlay == (uint8_t*)&Buffer[0]) {
+            dataToPlay =  (uint8_t*)&Buffer[SOUND_BUF_SIZE / 2];
+        } else {
+            dataToPlay =  (uint8_t*)&Buffer[0];
+        }
+        overflow = 0;
+        f_read(&f, (void*)&dataToPlay[3*(DATA_TO_PLAY_SIZE/4)], DATA_TO_PLAY_SIZE/4, &n);
+        DecodeFrom_ADPCM_to_WAV((signed short*)dataToPlay, (unsigned char*)&dataToPlay[3*(DATA_TO_PLAY_SIZE/4)], n); 
+        for (int i = 0; i < DATA_TO_PLAY_SIZE; i += 2) {
+          tmp = dataToPlay[i+1];
+          tmp = (tmp << 8) | dataToPlay[i];
+          tmp = tmp / 64;
+          tmp += 2048;
+          dataToPlay[i]   = tmp >> 8;
+          dataToPlay[i+1] = tmp & 0xFF;
+        }
+        HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, 1);
+        if (overflow) {
+            HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, 0);
+        }
+        if (n < SOUND_BUF_SIZE/4) {
+             n = SOUND_BUF_SIZE/4;
+             shutUp(); 
+             return;
+        }
+    }
 }
 //---------------------------------------------------------------------------
  
 int playSound(char *fileName)
-{
+{  
     xSemaphoreTake(doPlayingSemHandle, portMAX_DELAY);
     if (f_open(&f, fileName, FA_READ) != FR_OK) {
         xSemaphoreGive(doPlayingSemHandle);
         return 0;
     }
     memset (Buffer, 0x7F, SOUND_BUF_SIZE*2);
-    predsample = 0;	/* Output of ADPCM predictor */
-    index = 0;		/* Index into step size table */
-    xSemaphoreGive(dmaSoundSemHandle);
-    htim2.hdma[1]->State = HAL_DMA_STATE_READY_HALF;
+    predsample = 0;	
+    index = 0;		
+    xSemaphoreGive(dmaCpltSoundSemHandle);
     SoundTask();
+    xSemaphoreGive(dmaCpltSoundSemHandle);
+    SoundTask();
+    Buffer[0] = 0xC4;
+    HAL_I2C_Master_Transmit_DMA(&hi2c2, 0xC4, dataToPlay, DATA_TO_PLAY_SIZE);   
     vTaskResume(SoundTaskHandle);
-    HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, (uint32_t *)Buffer, SOUND_BUF_SIZE);
     return 1;
 }
 //---------------------------------------------------------------------------
 
 void shutUp(void){
-    HAL_TIM_PWM_Stop_DMA(&htim2, TIM_CHANNEL_1);
+    
+    //HAL_TIM_PWM_Stop_DMA(&htim2, TIM_CHANNEL_1);
     xSemaphoreGive(doPlayingSemHandle);
     f_close(&f);
     vTaskSuspend(SoundTaskHandle);
 }
 //---------------------------------------------------------------------------
 
-void sound_IRQ_DMA(void)
+void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c)
 {
    portBASE_TYPE xTaskWoken;
    overflow = 1;
-   xSemaphoreGiveFromISR(dmaSoundSemHandle, &xTaskWoken );
+   HAL_I2C_Master_Transmit_DMA(&hi2c2, 0xC4, dataToPlay, DATA_TO_PLAY_SIZE); 
+   xSemaphoreGiveFromISR(dmaCpltSoundSemHandle, &xTaskWoken );
    if( xTaskWoken == pdTRUE) {
 	   taskYIELD();
    }
+   
 }
 //---------------------------------------------------------------------------
 

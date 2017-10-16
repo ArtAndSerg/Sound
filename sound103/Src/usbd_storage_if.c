@@ -133,6 +133,7 @@ const int8_t  STORAGE_Inquirydata_FS[] = {/* 36 */
 /** @defgroup USBD_STORAGE_IF_Exported_Variables
   * @{
   */ 
+  extern USBD_HandleTypeDef hUsbDeviceFS;
 /* USER CODE BEGIN EXPORTED_VARIABLES */
 /* USER CODE END EXPORTED_VARIABLES */
 
@@ -218,7 +219,7 @@ int8_t STORAGE_GetCapacity_FS (uint8_t lun, uint32_t *block_num, uint16_t *block
 *******************************************************************************/
 int8_t  STORAGE_IsReady_FS (uint8_t lun)
 {
-   /* USER CODE BEGIN 4 */
+  /* USER CODE BEGIN 4 */ 
    HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
    flagUSBconnected = 1;
    return (USBD_OK);
