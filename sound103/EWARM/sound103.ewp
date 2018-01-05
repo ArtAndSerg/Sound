@@ -325,7 +325,7 @@
           <state>$PROJ_DIR$/../Middlewares/Third_Party/FatFs/src</state>
           <state>$PROJ_DIR$/../Middlewares/Third_Party/FreeRTOS/Source/include</state>
           <state>$PROJ_DIR$/../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS</state>
-        <state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /></option>
+        <state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /><state /></option>
         <option>
           <name>CCStdIncCheck</name>
           <state>0</state>
@@ -996,43 +996,43 @@
           <name>$PROJ_DIR$\..\Src\Tasks\WiFiTask.c</name>
         </file>
       </group>
-      <file>
-        <name>$PROJ_DIR$\..\Src\fatfs.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\Src\freertos.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\Src\main.c</name>
-      </file>
+      
+      
+      
       <file>
         <name>$PROJ_DIR$\..\Src\SPI_Flash.c</name>
       </file>
-      <file>
-        <name>$PROJ_DIR$\..\Src\stm32f1xx_hal_msp.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\Src\stm32f1xx_hal_timebase_TIM.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\Src\stm32f1xx_it.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\Src\usb_device.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\Src\usbd_conf.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\Src\usbd_desc.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\Src\usbd_storage_if.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\Src\user_diskio.c</name>
-      </file>
-    </group>
+      
+      
+      
+      
+      
+      
+      
+      
+    <file>
+        <name>$PROJ_DIR$/../Src/stm32f1xx_hal_msp.c</name>
+      </file><file>
+        <name>$PROJ_DIR$/../Src/stm32f1xx_it.c</name>
+      </file><file>
+        <name>$PROJ_DIR$/../Src/user_diskio.c</name>
+      </file><file>
+        <name>$PROJ_DIR$/../Src/usbd_desc.c</name>
+      </file><file>
+        <name>$PROJ_DIR$/../Src/usbd_storage_if.c</name>
+      </file><file>
+        <name>$PROJ_DIR$/../Src/usbd_conf.c</name>
+      </file><file>
+        <name>$PROJ_DIR$/../Src/usb_device.c</name>
+      </file><file>
+        <name>$PROJ_DIR$/../Src/main.c</name>
+      </file><file>
+        <name>$PROJ_DIR$/../Src/stm32f1xx_hal_timebase_TIM.c</name>
+      </file><file>
+        <name>$PROJ_DIR$/../Src/freertos.c</name>
+      </file><file>
+        <name>$PROJ_DIR$/../Src/fatfs.c</name>
+      </file></group>
   </group>
   <group>
     <name>Drivers</name>
@@ -1098,6 +1098,8 @@
       </file>
     <file>
         <name>$PROJ_DIR$/../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_i2c.c</name>
+      </file><file>
+        <name>$PROJ_DIR$/../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_uart.c</name>
       </file></group>
   </group>
   <group>
