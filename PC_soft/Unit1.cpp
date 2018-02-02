@@ -45,6 +45,8 @@ signed short  *wavData2 = NULL;
 unsigned char *adpcmData = NULL;
 int sizeWavInBytes = 0;
 
+int showingWindow = 10000;
+
 signed short ADPCMDecoder(unsigned char code)
 {
    int step;
@@ -213,28 +215,28 @@ void __fastcall TForm1::WAV1Click(TObject *Sender)
            FileClose(f);
            return;
        }
-       FileSeek(f, 100, 0);
-       size = size - 100;
+       FileSeek(f, 44, 0);
+       size = size - 44;
        if (wavData != NULL) {
            delete wavData;
+           wavData = NULL;
        }
-       wavData = new signed short [6400 + size / sizeof(signed short)];
-       memset(wavData, 0, 6400 + size / sizeof(signed short));
+       wavData = new signed short [size / sizeof(signed short)];
        if (wavData == NULL) {
             Application->MessageBoxA("Ошибка выделения памяти для WAV!", "В Н И М А Н И Е !", MB_OK);
             FileClose(f);
             return;
        }
-       if (FileRead(f, (void*)&wavData[3200], size) != size) {
+       if (FileRead(f, (void*)wavData, size) != size) {
             Application->MessageBoxA("Ошибка чтения файла!", "В Н И М А Н И Е !", MB_OK);
             FileClose(f);
             return;
        }
        FileClose(f);
 
-       size += 6400;
        if (adpcmData != NULL) {
            delete adpcmData;
+           adpcmData = NULL;
        }
        adpcmData = new unsigned char [(size / sizeof(signed short)) / 2];
        if (adpcmData == NULL) {
@@ -250,6 +252,7 @@ void __fastcall TForm1::WAV1Click(TObject *Sender)
 
        if (wavData2 != NULL) {
            delete wavData2;
+           wavData2 = NULL;
        }
        wavData2 = new signed short [size / sizeof(signed short)];
        if (wavData2 == NULL) {
@@ -262,8 +265,12 @@ void __fastcall TForm1::WAV1Click(TObject *Sender)
 
        Form1->Caption = "Файл \"" + ExtractFileName(OpenDialog1->FileName) + "\", размер " +
                         IntToStr(sizeWavInBytes / 1024) + "кБ. (" + IntToStr((sizeWavInBytes / 4) / 1024) + "кБ.)";
-       N1->Click();
+       showingWindow = 10000;
+       TrackBar1->Max = sizeWavInBytes/2;
+       TrackBar1->Position = 0;
+       refreshGUI();
     }
+
 }
 //---------------------------------------------------------------------------
 
@@ -307,82 +314,65 @@ void __fastcall TForm1::FormClose(TObject *Sender, TCloseAction &Action)
 
 void __fastcall TForm1::N1Click(TObject *Sender)
 {
-   static int start = 0;
-   int step = 320000;
-   if (!sizeWavInBytes) return;
-   if (step > sizeWavInBytes/2) step = sizeWavInBytes/2;
-   
-   if (Sender == N1) {
-      start += step;
-      if (start >= sizeWavInBytes/2) start = 0;
-   } else {
-      start -= step;
-      if (start < 0) start = sizeWavInBytes/2;
+   if (showingWindow < sizeWavInBytes) {
+      showingWindow *= 2;
    }
-   Series1->Clear();
-   Series2->Clear();
-   FastLineSeries1->Clear();
-   for (int i = start; i < start + step; i++) {
-       Series1->Add((double) wavData[i] / 327.67);
-       Series2->Add((double) (wavData2[i]) / 327.67);
-       FastLineSeries1->Add((double) wavData[i] / 327.67 - (double) wavData2[i] / 327.67);
+   refreshGUI();
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm1::Go1Click(TObject *Sender)
+{
+    if (showingWindow > 10) {
+      showingWindow /= 2;
    }
+   refreshGUI();
 }
 //---------------------------------------------------------------------------
 
 
 void __fastcall TForm1::N3Click(TObject *Sender)
 {
-unsigned char *res = new unsigned char[1000000];
-   int f = FileOpen("lenin.wav", fmOpenRead);
-   signed short tmp;
-   double d;
-   int i = 0, n =0, j = 0;
-   Series1->Clear();
-   Series2->Clear();
-   FastLineSeries1->Clear();
-   FileSeek(f, 200, 0);
-   for (i = 0; i < 10000; i++) {
-     FileRead(f, (void*)&tmp, 2);
-     //tmp = sin((double)i / 100.) * 32000;
-     if (!(i & 0x01)) {
-        res[n] = ADPCMEncoder(tmp) << 4;
-
-     }
-     else {
-        res[n] |= (ADPCMEncoder(tmp) );
-        n++;
-     }
-     tmp = ((signed short)tmp)/64 + 512;
-     d =  tmp;
-     Series1->Add(d);
-   }
-   FileClose(f);
-
-   for (i = 0; i < n; i++) {
-       tmp = ADPCMDecoder((res[i] >> 4) & 0x0F);
-       tmp = ((signed short)tmp)/64 + 512;
-       d =  tmp;
-       Series2->Add(d);
-       if (i>10) FastLineSeries1->Add(Series1->YValues->Value[j] - Series2->YValues->Value[j]);
-       j++;
-
-       tmp = ADPCMDecoder(res[i] & 0x0F);
-       tmp = ((signed short)tmp)/64 + 512;
-       d =  tmp;
-       Series2->Add(d);
-       if (i>10) FastLineSeries1->Add(Series1->YValues->Value[j] - Series2->YValues->Value[j]);
-       j++;
-
-   }
-   delete res;
-        
+    Close();
 }
 //---------------------------------------------------------------------------
 
-void __fastcall TForm1::test1Click(TObject *Sender)
+
+
+void __fastcall TForm1::refreshGUI(void)
 {
-   Form2->Show();
+   if (!sizeWavInBytes) return;
+   double *tmp1 = new double [showingWindow];
+   double *tmp2 = new double [showingWindow];
+   double *tmp3 = new double [showingWindow];
+   Series1->Clear();
+   Series2->Clear();
+   Series3->Clear();
+   for (int i = TrackBar1->Position; i < TrackBar1->Position + showingWindow && i < sizeWavInBytes/2; i++) {
+        tmp1[i-TrackBar1->Position] = (double) wavData[i] / 327.67;
+        tmp2[i-TrackBar1->Position] = (double) wavData2[i] / 327.67;
+        tmp3[i-TrackBar1->Position] = tmp2[i-TrackBar1->Position] - tmp1[i-TrackBar1->Position];
+   }
+   Series1->AddArray(tmp1, showingWindow);
+   Series2->AddArray(tmp2, showingWindow);
+   Series3->AddArray(tmp3, showingWindow);
+   delete tmp1;
+   delete tmp2;
+   delete tmp3;
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm1::TrackBar1ContextPopup(TObject *Sender,
+      TPoint &MousePos, bool &Handled)
+{
+   refreshGUI();
+}
+//---------------------------------------------------------------------------
+
+
+void __fastcall TForm1::TrackBar1Change(TObject *Sender)
+{
+    refreshGUI();
 }
 //---------------------------------------------------------------------------
 

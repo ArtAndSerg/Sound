@@ -1,0 +1,13 @@
+#define HTTP_REQUEST "POST /api/postamat/v1?key=C3B5qFR1ZoGqblz2CFFTd0IMOfNFizNKOsLiTPmnlYSugC1ap9 HTTP/1.1\r\n" \
+"Host: pvz.shiptor.ru\r\n" \
+"Content-Length: 85\r\n" \
+"Connection: keep-alive\r\n" \
+    "User-Agent: Postamat-123456\r\n" \
+"Cache-Control: no-cache\r\n" \
+"Content-Type: application/json\r\n" \
+"Accept: */*\r\n" \
+"Accept-Encoding: deflate, br\r\n" \
+"Accept-Language: en-US,en;q=0.9,ru;q=0.8\r\n" \
+"\r\n" \
+"{\"id\": \"JsonRpcClient.js\", \"jsonrpc\": \"2.0\", \"method\": \"get.shipments\", \"params\": []}"
+#define BUF_SIZE      1000

@@ -14,15 +14,14 @@
 #include <TeeProcs.hpp>
 #include <Menus.hpp>
 #include <Dialogs.hpp>
+#include <ComCtrls.hpp>
 //---------------------------------------------------------------------------
 class TForm1 : public TForm
 {
 __published:	// IDE-managed Components
         TChart *Chart1;
         TFastLineSeries *Series1;
-        TLineSeries *Series2;
         TChart *Chart2;
-        TFastLineSeries *FastLineSeries1;
         TMainMenu *MainMenu1;
         TMenuItem *Go1;
         TMenuItem *N1;
@@ -33,17 +32,24 @@ __published:	// IDE-managed Components
         TMenuItem *N4;
         TOpenDialog *OpenDialog1;
         TSaveDialog *SaveDialog1;
-        TMenuItem *test1;
+        TTrackBar *TrackBar1;
+        TFastLineSeries *Series2;
+        TFastLineSeries *Series3;
         void __fastcall N4Click(TObject *Sender);
         void __fastcall WAV1Click(TObject *Sender);
         void __fastcall FormClose(TObject *Sender, TCloseAction &Action);
         void __fastcall ADPCM1Click(TObject *Sender);
         void __fastcall N1Click(TObject *Sender);
         void __fastcall N3Click(TObject *Sender);
-        void __fastcall test1Click(TObject *Sender);
+        void __fastcall TrackBar1ContextPopup(TObject *Sender,
+          TPoint &MousePos, bool &Handled);
+        void __fastcall Go1Click(TObject *Sender);
+        void __fastcall TrackBar1Change(TObject *Sender);
+       
 private:	// User declarations
 public:		// User declarations
         __fastcall TForm1(TComponent* Owner);
+        void __fastcall refreshGUI(void);
 };
 //---------------------------------------------------------------------------
 extern PACKAGE TForm1 *Form1;

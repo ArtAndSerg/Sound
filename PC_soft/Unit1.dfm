@@ -1,8 +1,8 @@
 object Form1: TForm1
-  Left = 772
-  Top = 350
+  Left = 698
+  Top = 223
   Width = 548
-  Height = 429
+  Height = 517
   Caption = #1050#1086#1085#1074#1077#1088#1090#1077#1088' '#1079#1074#1091#1082#1086#1074#1099#1093' '#1092#1072#1081#1083#1086#1074
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -19,7 +19,7 @@ object Form1: TForm1
     Left = 0
     Top = 201
     Width = 532
-    Height = 169
+    Height = 223
     BackWall.Brush.Color = clWhite
     BackWall.Brush.Style = bsClear
     Title.Text.Strings = (
@@ -48,16 +48,11 @@ object Form1: TForm1
       YValues.Multiplier = 1
       YValues.Order = loNone
     end
-    object Series2: TLineSeries
+    object Series2: TFastLineSeries
       Marks.ArrowLength = 8
       Marks.Visible = False
       SeriesColor = clGreen
-      Pointer.HorizSize = 2
-      Pointer.InflateMargins = True
-      Pointer.Pen.Visible = False
-      Pointer.Style = psRectangle
-      Pointer.VertSize = 2
-      Pointer.Visible = False
+      LinePen.Color = clGreen
       XValues.DateTime = False
       XValues.Name = 'X'
       XValues.Multiplier = 1
@@ -91,11 +86,11 @@ object Form1: TForm1
     View3D = False
     Align = alTop
     TabOrder = 1
-    object FastLineSeries1: TFastLineSeries
+    object Series3: TFastLineSeries
       Marks.ArrowLength = 8
       Marks.Visible = False
-      SeriesColor = clRed
-      LinePen.Color = clRed
+      SeriesColor = clBlue
+      LinePen.Color = clBlue
       XValues.DateTime = False
       XValues.Name = 'X'
       XValues.Multiplier = 1
@@ -105,6 +100,24 @@ object Form1: TForm1
       YValues.Multiplier = 1
       YValues.Order = loNone
     end
+  end
+  object TrackBar1: TTrackBar
+    Left = 0
+    Top = 424
+    Width = 532
+    Height = 34
+    Align = alBottom
+    Max = 200000
+    Orientation = trHorizontal
+    Frequency = 10000
+    Position = 0
+    SelEnd = 0
+    SelStart = 0
+    TabOrder = 2
+    TickMarks = tmBoth
+    TickStyle = tsAuto
+    OnContextPopup = TrackBar1ContextPopup
+    OnChange = TrackBar1Change
   end
   object MainMenu1: TMainMenu
     Left = 152
@@ -125,12 +138,12 @@ object Form1: TForm1
       end
     end
     object Go1: TMenuItem
-      Caption = '<<<'
+      Caption = '  [+]  '
       ShortCut = 113
-      OnClick = N1Click
+      OnClick = Go1Click
     end
     object N1: TMenuItem
-      Caption = '>>>'
+      Caption = '  [-]  '
       ShortCut = 114
       OnClick = N1Click
     end
@@ -138,10 +151,6 @@ object Form1: TForm1
       Caption = #1057#1087#1088#1072#1074#1082#1072
       ShortCut = 112
       OnClick = N4Click
-    end
-    object test1: TMenuItem
-      Caption = 'test'
-      OnClick = test1Click
     end
   end
   object OpenDialog1: TOpenDialog
