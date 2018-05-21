@@ -1,10 +1,10 @@
 [StLinkDriver]
-stlinkserialNo=2798FD0D
+stlinkserialNo=A501364C
 stlinkfoundProbes=
 CStepIntDis=_ 0
 LeaveTargetRunning=_ 0
 [DebugChecksum]
-Checksum=-552907331
+Checksum=-1093307372
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -41,9 +41,27 @@ ITMportsEnable=0
 ITMportsTermIO=0
 ITMportsLogFile=0
 ITMlogFile=$PROJ_DIR$\ITM.log
+[InterruptStripe]
+Sort=1
+[EventStripe]
+Title0=ITM4
+Setup0=1 1 3 1 1 0 0 0 4294967295
+Title1=ITM3
+Setup1=1 1 3 1 1 0 0 0 4294967295
+Title2=ITM2
+Setup2=1 1 3 1 1 0 0 0 4294967295
+Title3=ITM1
+Setup3=1 1 3 1 1 0 0 0 4294967295
+[struct_types]
+Fmt0=PCD_TypeDef-ISTR	4	0
 [array_types]
-Fmt0=unsigned short[100]	5	0
-Fmt1=unsigned short[500]	5	0
+Fmt0=uint32_t[1052]	4	0
+Fmt1=unsigned short[100]	5	0
+Fmt2=unsigned short[500]	5	0
+[watch_formats]
+Fmt0={W}1:DevAddress	4	0
+Fmt1={W}1:dataToPlay[i+1]	4	0
+Fmt2={W}1:dataToPlay[i]	4	0
 [Trace2]
 Enabled=0
 ShowSource=0
@@ -104,8 +122,7 @@ ShowTiming=1
 [Disassemble mode]
 mode=0
 [Breakpoints2]
-Bp0=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\Src\usbd_storage_if.c}.189.3" 0 0 1 "" 0 "" 0
-Count=1
+Count=0
 [Aliases]
 Count=0
 SuppressDialog=0

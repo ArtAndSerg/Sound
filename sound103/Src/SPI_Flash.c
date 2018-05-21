@@ -6,10 +6,6 @@
 #include "SPI_Flash.h"
 
 extern SPI_HandleTypeDef hspi1;
-extern signed short Buffer[2048+1];
-
-BYTE *BufferRMW = (void*)Buffer;
-
 SPI_HandleTypeDef *hspi = &hspi1;
 
 DWORD dwCurrentAddr;
@@ -108,27 +104,6 @@ void SPIFlashEndWrite(void)
 //--------------------------------------------------------------------
 
 
-int SPIFlashWriteArrayRMW(DWORD Addr, BYTE *vData, WORD wLen)
-{
-    DWORD addr;
-    int len;
-    if(Addr & SPI_FLASH_SECTOR_MASK) {
-       SPIFlashReadArray(Addr - (Addr & SPI_FLASH_SECTOR_MASK), BufferRMW, SPI_FLASH_SECTOR_SIZE);
-       addr = Addr & SPI_FLASH_SECTOR_MASK;
-       len = SPI_FLASH_SECTOR_SIZE - (Addr & SPI_FLASH_SECTOR_MASK);
-       memcpy((void*)&BufferRMW[Addr & SPI_FLASH_SECTOR_MASK], (void*)vData, wLen);
-       SPIFlashWriteArray(Addr - (Addr & SPI_FLASH_SECTOR_MASK), BufferRMW, SPI_FLASH_SECTOR_SIZE);
-    } else {
-    
-       SPIFlashWriteArray(Addr, vData, wLen);
-    }
-    
-
-    return wLen;
-}
-//--------------------------------------------------------------------
-
-
 int SPIFlashWriteArray(DWORD Addr, BYTE *vData, WORD wLen)
 {
     // Ignore operations when the destination is NULL or nothing to read
@@ -165,6 +140,20 @@ void SPIFlashReadArray(DWORD dwAddr, BYTE *vData, WORD wLen)
         SPIFlashBeginRead(dwAddr);
         // Read data
         HAL_SPI_Receive(hspi, vData, wLen, HAL_MAX_DELAY); 
+        SPIFlashEndRead();
+    }
+}
+//----------------------------------------------------------------------------
+
+
+void SPIFlashReadArrayDMA(DWORD dwAddr, BYTE *vData, WORD wLen)
+{
+    // Ignore operations when the destination is NULL or nothing to read
+    if(vData != NULL && wLen && dwAddr < SPI_FLASH_SIZE) {
+        SPIFlashBeginRead(dwAddr);
+        // Read data
+        HAL_SPI_Receive_DMA(hspi, vData, wLen); 
+        while(hspi->State != HAL_SPI_STATE_READY);
         SPIFlashEndRead();
     }
 }

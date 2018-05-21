@@ -4,3 +4,10 @@ sound103/EWARM/sound103/*
 .~*
 .tds
 .obj
+sound103/EWARM/settings/Project.wsdt
+*.wsdt
+*.sim
+*.ewp
+*.dep
+*.dbgdt
+*.wspos

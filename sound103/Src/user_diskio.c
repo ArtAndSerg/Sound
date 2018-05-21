@@ -9,7 +9,7 @@
   * inserted by the user or by software development tools
   * are owned by their respective copyright owners.
   *
-  * Copyright (c) 2017 STMicroelectronics International N.V. 
+  * Copyright (c) 2018 STMicroelectronics International N.V. 
   * All rights reserved.
   *
   * Redistribution and use in source and binary forms, with or without 
@@ -74,7 +74,6 @@ static volatile DSTATUS Stat = STA_NOINIT;
 /* USER CODE END DECL */
 
 /* Private function prototypes -----------------------------------------------*/
-           
 DSTATUS USER_initialize (BYTE pdrv);
 DSTATUS USER_status (BYTE pdrv);
 DRESULT USER_read (BYTE pdrv, BYTE *buff, DWORD sector, UINT count);
@@ -114,14 +113,14 @@ DSTATUS USER_initialize (
     return Stat;
   /* USER CODE END INIT */
 }
-
+ 
 /**
   * @brief  Gets Disk Status 
   * @param  pdrv: Physical drive number (0..)
   * @retval DSTATUS: Operation status
   */
 DSTATUS USER_status (
-	BYTE pdrv       /* Physical drive nmuber to identify the drive */
+	BYTE pdrv       /* Physical drive number to identify the drive */
 )
 {
   /* USER CODE BEGIN STATUS */
@@ -146,11 +145,7 @@ DRESULT USER_read (
 )
 {
   /* USER CODE BEGIN READ */
-    DRESULT res = RES_NOTRDY;
-   // while(!uxSemaphoreGetCount(FlashSemHandle));
-    HAL_NVIC_DisableIRQ(USB_LP_CAN1_RX0_IRQn);
-    SPIFlashReadArray(sector * 512, buff, count * 512); 
-    HAL_NVIC_EnableIRQ(USB_LP_CAN1_RX0_IRQn);
+    SPIFlashReadArrayDMA(sector * _MAX_SS, buff, count * _MAX_SS); 
     return RES_OK;
   /* USER CODE END READ */
 }
@@ -173,9 +168,7 @@ DRESULT USER_write (
 { 
   /* USER CODE BEGIN WRITE */
   /* USER CODE HERE */
-    HAL_NVIC_DisableIRQ(USB_LP_CAN1_RX0_IRQn);
-    SPIFlashWriteArray(sector * 512, (BYTE*)buff, count * 512); 
-    HAL_NVIC_EnableIRQ(USB_LP_CAN1_RX0_IRQn);
+    SPIFlashWriteArray(sector * _MAX_SS, (BYTE*)buff, count * _MAX_SS); 
     return RES_OK;
   /* USER CODE END WRITE */
 }

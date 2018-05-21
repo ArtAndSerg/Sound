@@ -62,6 +62,7 @@ void SPIFlashRead(BYTE *buf, int count);
 void SPIFlashEndRead(void);   
 unsigned char SPIFlashReadByte(void);
 void SPIFlashReadArray(DWORD dwAddress, BYTE *vData, WORD wLen);
+void SPIFlashReadArrayDMA(DWORD dwAddress, BYTE *vData, WORD wLen);
 void SPIFlashBeginWrite(DWORD dwAddr);
 void SPIFlashWrite(BYTE *buf, int count);
 void SPIFlashEndWrite(void);

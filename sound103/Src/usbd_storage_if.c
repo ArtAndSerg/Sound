@@ -9,7 +9,7 @@
   * inserted by the user or by software development tools
   * are owned by their respective copyright owners.
   *
-  * Copyright (c) 2017 STMicroelectronics International N.V. 
+  * Copyright (c) 2018 STMicroelectronics International N.V. 
   * All rights reserved.
   *
   * Redistribution and use in source and binary forms, with or without 
@@ -50,7 +50,9 @@
 #include "usbd_storage_if.h"
 /* USER CODE BEGIN INCLUDE */
 #include "SPI_Flash.h"
+#include "cmsis_os.h"
 
+extern volatile int flagUSBconnected, flagProgrammRunning;
 /* USER CODE END INCLUDE */
 
 /** @addtogroup STM32_USB_OTG_DEVICE_LIBRARY
@@ -79,7 +81,9 @@
 #define STORAGE_BLK_SIZ                  0x200
 
 /* USER CODE BEGIN PRIVATE_DEFINES */
+#define STORAGE_BLK_SIZ                  SPI_FLASH_SECTOR_SIZE
 #define STORAGE_BLK_NBR                  (SPI_FLASH_SIZE / STORAGE_BLK_SIZ)  
+
 /* USER CODE END PRIVATE_DEFINES */
   
 /**
@@ -216,7 +220,9 @@ int8_t STORAGE_GetCapacity_FS (uint8_t lun, uint32_t *block_num, uint16_t *block
 int8_t  STORAGE_IsReady_FS (uint8_t lun)
 {
   /* USER CODE BEGIN 4 */ 
-  return (USBD_OK);
+   HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
+   flagUSBconnected = 1;
+   return (USBD_OK);
   /* USER CODE END 4 */ 
 }
 
@@ -265,8 +271,9 @@ int8_t STORAGE_Write_FS (uint8_t lun,
                          uint16_t blk_len)
 {
   /* USER CODE BEGIN 7 */ 
-  SPIFlashWriteArrayRMW(blk_addr * STORAGE_BLK_SIZ, buf, blk_len * STORAGE_BLK_SIZ); 
-  HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
+  HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, 1);  
+  SPIFlashWriteArray(blk_addr * STORAGE_BLK_SIZ, buf, blk_len * STORAGE_BLK_SIZ); 
+  HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, 0);  
   return (USBD_OK);
   /* USER CODE END 7 */ 
 }
