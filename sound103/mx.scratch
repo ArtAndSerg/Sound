@@ -1,27 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Project>
-<ProjectName>D:\Work\old\Sound\src\sound103\\sound103</ProjectName>
+<ProjectName>D:\Work\old\Sound\src\Sound\sound103\\sound103</ProjectName>
+<ProjectNature>C</ProjectNature> 
 <CMSIS>..\Drivers\CMSIS</CMSIS>
-<HAL_Driver>C:\Users\sergey.kitaev\STM32Cube\Repository\STM32Cube_FW_F1_V1.6.0\Drivers\CMSIS</HAL_Driver>
-
+<HAL_Driver>C:\Users\sergey.kitaev\STM32Cube\Repository\STM32Cube_FW_F1_V1.6.1\Drivers\CMSIS</HAL_Driver>
 <Toolchain>EWARM</Toolchain>
 	<Toolversion>0</Toolversion>
 <Version>0</Version>
 
 <filestoremove>
-	<file>
-	   		<name>..\Src\main.c</name>
-	   		<name>..\Src\user_diskio.c</name>
-	   		<name>..\Src\fatfs.c</name>
-	   		<name>..\Src\freertos.c</name>
-	   		<name>..\Src\usb_device.c</name>
-	   		<name>..\Src\usbd_conf.c</name>
-	   		<name>..\Src\usbd_desc.c</name>
-	   		<name>..\Src\usbd_storage_if.c</name>
-	   		<name>..\Src\stm32f1xx_it.c</name>
-	   		<name>..\Src\stm32f1xx_hal_msp.c</name>
-	   		<name>..\Src\stm32f1xx_hal_timebase_TIM.c</name>
-	</file>
+    <file>
+    </file>
 </filestoremove>
 
 <inctoremove>
@@ -43,8 +32,8 @@
     	<board>custom</board>
 			
     <usedDebug>true</usedDebug>
-    	<debugprobe>swd</debugprobe>
-    <optimization></optimization>
+    	<debugprobe></debugprobe>
+    <optimization>2</optimization>
     <icfloc>0</icfloc>
     <Adefines>
         <define></define>
@@ -52,7 +41,7 @@
 
     <UsedFreeRTOS>true</UsedFreeRTOS>
     <Aincludes>
-		   		<include>$PROJ_DIR$\..\Inc</include>
+		   		<include>$PROJ_DIR$\..\\Inc</include>
     </Aincludes>
     <Cdefines>
     </Cdefines>
@@ -227,7 +216,7 @@
 		    <group>
 		    	<name>CMSIS</name>
 							<file>
-								<name>../Src/system_stm32f1xx.c</name>
+								<name>../\Src/system_stm32f1xx.c</name>
 							</file>
 		    	</group>
 	  </group>   

@@ -61,6 +61,8 @@
 
 #define LED_Pin GPIO_PIN_13
 #define LED_GPIO_Port GPIOC
+#define KEYBOARD_ADC_Pin GPIO_PIN_0
+#define KEYBOARD_ADC_GPIO_Port GPIOA
 #define VS_RESET_Pin GPIO_PIN_3
 #define VS_RESET_GPIO_Port GPIOA
 #define VS_DREQ_Pin GPIO_PIN_4

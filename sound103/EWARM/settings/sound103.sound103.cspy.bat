@@ -25,7 +25,7 @@ if not "%~1" == "" goto debugFile
 
 @echo on 
 
-"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.4\common\bin\cspybat" -f "C:\Work\Sound\Sound\sound103\EWARM\settings\sound103.sound103.general.xcl" --backend -f "C:\Work\Sound\Sound\sound103\EWARM\settings\sound103.sound103.driver.xcl" 
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.4\common\bin\cspybat" -f "D:\Work\old\Sound\src\Sound\sound103\EWARM\settings\sound103.sound103.general.xcl" --backend -f "D:\Work\old\Sound\src\Sound\sound103\EWARM\settings\sound103.sound103.driver.xcl" 
 
 @echo off 
 goto end 
@@ -34,7 +34,7 @@ goto end
 
 @echo on 
 
-"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.4\common\bin\cspybat" -f "C:\Work\Sound\Sound\sound103\EWARM\settings\sound103.sound103.general.xcl" "--debug_file=%~1" --backend -f "C:\Work\Sound\Sound\sound103\EWARM\settings\sound103.sound103.driver.xcl" 
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.4\common\bin\cspybat" -f "D:\Work\old\Sound\src\Sound\sound103\EWARM\settings\sound103.sound103.general.xcl" "--debug_file=%~1" --backend -f "D:\Work\old\Sound\src\Sound\sound103\EWARM\settings\sound103.sound103.driver.xcl" 
 
 @echo off 
 :end

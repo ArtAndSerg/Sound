@@ -12,3 +12,7 @@ del PC_soft\*.csm
 del SoundBench\EWARM\SoundBench\Exe\*.* /Q
 del SoundBench\EWARM\SoundBench\List\*.* /Q
 del SoundBench\EWARM\SoundBench\Obj\*.* /Q
+del sound103\EWARM\sound103\Exe\*.* /Q
+del sound103\EWARM\sound103\List\*.* /Q
+del sound103\EWARM\sound103\Obj\*.* /Q
+

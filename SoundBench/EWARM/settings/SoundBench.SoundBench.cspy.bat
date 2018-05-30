@@ -25,7 +25,7 @@ if not "%~1" == "" goto debugFile
 
 @echo on 
 
-"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.4\common\bin\cspybat" -f "D:\Work\old\Sound\src\SoundBench\EWARM\settings\SoundBench.SoundBench.general.xcl" --backend -f "D:\Work\old\Sound\src\SoundBench\EWARM\settings\SoundBench.SoundBench.driver.xcl" 
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.4\common\bin\cspybat" -f "D:\Work\old\Sound\src\Sound\SoundBench\EWARM\settings\SoundBench.SoundBench.general.xcl" --backend -f "D:\Work\old\Sound\src\Sound\SoundBench\EWARM\settings\SoundBench.SoundBench.driver.xcl" 
 
 @echo off 
 goto end 
@@ -34,7 +34,7 @@ goto end
 
 @echo on 
 
-"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.4\common\bin\cspybat" -f "D:\Work\old\Sound\src\SoundBench\EWARM\settings\SoundBench.SoundBench.general.xcl" "--debug_file=%~1" --backend -f "D:\Work\old\Sound\src\SoundBench\EWARM\settings\SoundBench.SoundBench.driver.xcl" 
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.4\common\bin\cspybat" -f "D:\Work\old\Sound\src\Sound\SoundBench\EWARM\settings\SoundBench.SoundBench.general.xcl" "--debug_file=%~1" --backend -f "D:\Work\old\Sound\src\Sound\SoundBench\EWARM\settings\SoundBench.SoundBench.driver.xcl" 
 
 @echo off 
 :end

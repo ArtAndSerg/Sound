@@ -14,7 +14,7 @@ LeaveTargetRunning=_ 0
 stlinkserialNo=A501364C
 stlinkfoundProbes=
 [DebugChecksum]
-Checksum=-1672228113
+Checksum=1440800002
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -41,6 +41,10 @@ ITMportsEnable=0
 ITMportsTermIO=0
 ITMportsLogFile=0
 ITMlogFile=$PROJ_DIR$\ITM.log
+[struct_types]
+Fmt0=TIM_TypeDef-SR	4	0
+[watch_formats]
+Fmt0={W}1:data	1	0
 [Trace2]
 Enabled=0
 ShowSource=0

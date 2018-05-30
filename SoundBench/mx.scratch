@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Project>
-<ProjectName>D:\Work\old\Sound\src\SoundBench\\SoundBench</ProjectName>
+<ProjectName>D:\Work\old\Sound\src\Sound\SoundBench\\SoundBench</ProjectName>
 <ProjectNature>C</ProjectNature> 
 <CMSIS>..\Drivers\CMSIS</CMSIS>
 <HAL_Driver>C:\Users\sergey.kitaev\STM32Cube\Repository\STM32Cube_FW_F1_V1.6.1\Drivers\CMSIS</HAL_Driver>
@@ -26,7 +26,7 @@
     <name>SoundBench</name>				
     <device>STM32F103C8Tx</device>		 
     <heapSize>0x10</heapSize>
-    <stackSize>0x100</stackSize>
+    <stackSize>0x200</stackSize>
     
     	<cpuclock>72</cpuclock>
     	<board>custom</board>
@@ -166,6 +166,12 @@
 						</file>
 						<file>
 							<name>../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_ll_usb.c</name>
+						</file>
+						<file>
+							<name>../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_adc.c</name>
+						</file>
+						<file>
+							<name>../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_adc_ex.c</name>
 						</file>
 						<file>
 							<name>../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_rtc.c</name>
