@@ -28,8 +28,7 @@ object Form1: TForm1
     LeftAxis.Automatic = False
     LeftAxis.AutomaticMaximum = False
     LeftAxis.AutomaticMinimum = False
-    LeftAxis.Maximum = 100
-    LeftAxis.Minimum = -100
+    LeftAxis.Maximum = 200
     Legend.Visible = False
     View3D = False
     Align = alClient
@@ -131,6 +130,10 @@ object Form1: TForm1
       object ADPCM1: TMenuItem
         Caption = #1057#1086#1093#1088#1072#1085#1080#1090#1100' '#1074' "ADPCM"'
         OnClick = ADPCM1Click
+      end
+      object N5: TMenuItem
+        Caption = #1055#1072#1082#1077#1090#1085#1072#1103' '#1086#1073#1088#1072#1073#1086#1090#1082#1072
+        OnClick = N5Click
       end
       object N3: TMenuItem
         Caption = #1042#1099#1093#1086#1076

@@ -41,13 +41,13 @@ int predsample = 0;	/* Output of ADPCM predictor */
 char index = 0;		/* Index into step size table */
 
 signed short  *wavData = NULL;
-signed short  *wavData2 = NULL;
+unsigned short  *wavData2 = NULL;
 unsigned char *adpcmData = NULL;
 int sizeWavInBytes = 0;
 
 int showingWindow = 10000;
 
-signed short ADPCMDecoder(unsigned char code)
+unsigned short ADPCMDecoder(unsigned char code)
 {
    int step;
    int diffq;
@@ -71,10 +71,10 @@ signed short ADPCMDecoder(unsigned char code)
       predsample += diffq;
    }
 
-   if(predsample > 32767) {
-      predsample = 32767;
-   } else if (predsample < -32768) {
-      predsample = -32768;
+   if(predsample > 32766) {
+      predsample = 32766;
+   } else if (predsample < -32766) {
+      predsample = -32766;
    }
 
    index += IndexTable[code];
@@ -86,7 +86,7 @@ signed short ADPCMDecoder(unsigned char code)
       index = 88;
    }
 
-   return( (unsigned short)(predsample) );
+   return( (unsigned short)(predsample+32766) );
 }
 //------------------------------------------------------------------------------
 
@@ -176,7 +176,7 @@ void EncodeFrom_WAV_to_ADPCM(unsigned char *adpcm, signed short *wav, int wavLen
 }
 //-----------------------------------------------------------------------------
 
-void DecodeFrom_ADPCM_to_WAV(signed short *wav, unsigned char *adpcm, int adpcmLen)
+void DecodeFrom_ADPCM_to_WAV(unsigned short *wav, unsigned char *adpcm, int adpcmLen)
 {
     for (int i = 0; i < adpcmLen*2; i++) {
        if (!(i & 0x01)) {
@@ -186,15 +186,9 @@ void DecodeFrom_ADPCM_to_WAV(signed short *wav, unsigned char *adpcm, int adpcmL
           wav[i] = ADPCMDecoder((adpcm[i/2]) & 0x0F);
        }
     }
+
 }
 //-----------------------------------------------------------------------------
-
-
-
-
-
-
-
 
 void __fastcall TForm1::N4Click(TObject *Sender)
 {
@@ -203,12 +197,11 @@ void __fastcall TForm1::N4Click(TObject *Sender)
 }
 //---------------------------------------------------------------------------
 
-void __fastcall TForm1::WAV1Click(TObject *Sender)
+void  __fastcall TForm1::OpenWAV(String filename)
 {
-    int f, size;
-    sizeWavInBytes = 0;
-    if (OpenDialog1->Execute()) {
-       f = FileOpen(OpenDialog1->FileName, fmOpenRead);
+       int f, size;
+       sizeWavInBytes = 0;
+       f = FileOpen(filename, fmOpenRead);
        size = FileSeek(f, 0, 2);
        if (size > 100000000 || size < 200) {
            Application->MessageBoxA("Ошибка открытия файла!\nИли недопустимый размер (от 200б до 100Мб)!", "В Н И М А Н И Е !", MB_OK);
@@ -254,7 +247,7 @@ void __fastcall TForm1::WAV1Click(TObject *Sender)
            delete wavData2;
            wavData2 = NULL;
        }
-       wavData2 = new signed short [size / sizeof(signed short)];
+       wavData2 = new unsigned short [size / sizeof(unsigned short)];
        if (wavData2 == NULL) {
             Application->MessageBoxA("Ошибка выделения памяти для WAV2!", "В Н И М А Н И Е !", MB_OK);
             return;
@@ -268,32 +261,46 @@ void __fastcall TForm1::WAV1Click(TObject *Sender)
        showingWindow = 10000;
        TrackBar1->Max = sizeWavInBytes/2;
        TrackBar1->Position = 0;
-       refreshGUI();
-    }
-
 }
 //---------------------------------------------------------------------------
 
-void __fastcall TForm1::ADPCM1Click(TObject *Sender)
+
+void __fastcall TForm1::WAV1Click(TObject *Sender)
 {
-    int f;
-    if (SaveDialog1->Execute()) {
-       if (!sizeWavInBytes) {
+
+    if (OpenDialog1->Execute()) {
+       OpenWAV(OpenDialog1->FileName);
+       refreshGUI();
+    }
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm1::SaveADPCM(String filename)
+{
+      int f;
+      if (!sizeWavInBytes) {
             Application->MessageBoxA("Ошибка! Сперва нужно открыть звук в \"WAV\"", "В Н И М А Н И Е !", MB_OK);
             return;
        }
-       if (FileExists(SaveDialog1->FileName)) {
-          if (!DeleteFile(SaveDialog1->FileName)) {
+       if (FileExists(filename)) {
+          if (!DeleteFile(filename)) {
               Application->MessageBoxA("Ошибка доступа к файлу (не могу удалить)!", "В Н И М А Н И Е !", MB_OK);
               return;
           }
        }
-       f = FileCreate(SaveDialog1->FileName);
+       f = FileCreate(filename);
 
        if (FileWrite(f, (void*)adpcmData, (sizeWavInBytes / sizeof(signed short)) / 2) != (sizeWavInBytes / sizeof(signed short)) / 2) {
             Application->MessageBoxA("Ошибка записи файла!", "В Н И М А Н И Е !", MB_OK);
        }
        FileClose(f);
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm1::ADPCM1Click(TObject *Sender)
+{
+    if (SaveDialog1->Execute()) {
+        SaveADPCM(SaveDialog1->FileName);
     }
 }
 //---------------------------------------------------------------------------
@@ -349,7 +356,7 @@ void __fastcall TForm1::refreshGUI(void)
    Series2->Clear();
    Series3->Clear();
    for (int i = TrackBar1->Position; i < TrackBar1->Position + showingWindow && i < sizeWavInBytes/2; i++) {
-        tmp1[i-TrackBar1->Position] = (double) wavData[i] / 327.67;
+        tmp1[i-TrackBar1->Position] = (double) (wavData[i]) / 327.67 + 100.;
         tmp2[i-TrackBar1->Position] = (double) wavData2[i] / 327.67;
         tmp3[i-TrackBar1->Position] = tmp2[i-TrackBar1->Position] - tmp1[i-TrackBar1->Position];
    }
@@ -373,6 +380,30 @@ void __fastcall TForm1::TrackBar1ContextPopup(TObject *Sender,
 void __fastcall TForm1::TrackBar1Change(TObject *Sender)
 {
     refreshGUI();
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm1::N5Click(TObject *Sender)
+{
+   TSearchRec tFileInfo;
+   String     vasFilename, path = ExtractFilePath(Application->ExeName);
+   vasFilename = path + "wav\\*.wav";
+   if(FindFirst(vasFilename, faAnyFile, tFileInfo) == 0)
+   {
+     do
+     {
+       if((tFileInfo.Name != ".") && (tFileInfo.Name != "..") &&
+           (tFileInfo.Attr & faDirectory) != faDirectory)
+       {
+           OpenWAV(path + "wav\\" + tFileInfo.Name);
+           refreshGUI();
+           Application->ProcessMessages();
+           SaveADPCM(path + "raw\\" + ChangeFileExt(tFileInfo.Name, ".raw"));
+       }
+     } while (FindNext(tFileInfo) == 0);
+   }
+   FindClose(tFileInfo);
+  
 }
 //---------------------------------------------------------------------------
 

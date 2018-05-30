@@ -35,6 +35,7 @@ __published:	// IDE-managed Components
         TTrackBar *TrackBar1;
         TFastLineSeries *Series2;
         TFastLineSeries *Series3;
+        TMenuItem *N5;
         void __fastcall N4Click(TObject *Sender);
         void __fastcall WAV1Click(TObject *Sender);
         void __fastcall FormClose(TObject *Sender, TCloseAction &Action);
@@ -45,11 +46,14 @@ __published:	// IDE-managed Components
           TPoint &MousePos, bool &Handled);
         void __fastcall Go1Click(TObject *Sender);
         void __fastcall TrackBar1Change(TObject *Sender);
+        void __fastcall N5Click(TObject *Sender);
        
 private:	// User declarations
 public:		// User declarations
         __fastcall TForm1(TComponent* Owner);
         void __fastcall refreshGUI(void);
+        void __fastcall OpenWAV(String filename);
+        void __fastcall SaveADPCM(String filename);
 };
 //---------------------------------------------------------------------------
 extern PACKAGE TForm1 *Form1;
