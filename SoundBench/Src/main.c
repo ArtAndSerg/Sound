@@ -534,11 +534,11 @@ void StartSoundTask(void const * argument)
 void StartGSMTask(void const * argument)
 {
   /* USER CODE BEGIN StartGSMTask */
-  InitGSMTask();
+  InitGsmTask();
     /* Infinite loop */
   for(;;)
   {
-    GSMTask();  
+    gsmTask();  
     osDelay(1);
   }
   /* USER CODE END StartGSMTask */
@@ -562,11 +562,11 @@ void StartKeysTask(void const * argument)
 void StartLCDTask(void const * argument)
 {
   /* USER CODE BEGIN StartLCDTask */
-    InitLCDTask();
+    InitLcdTask();
   /* Infinite loop */
   for(;;)
   {
-    LCDTask();   
+    lcdTask();   
     //osDelay(1);
   }
   /* USER CODE END StartLCDTask */

@@ -2,13 +2,13 @@
 
 #include "my/myTasks.h"
 
-void InitGSMTask(void)
+void InitGsmTask(void)
 {
     
 }
 //------------------------------------------------------------------------------
 
-void GSMTask(void)
+void gsmTask(void)
 {
     
 }
