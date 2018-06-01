@@ -10,9 +10,4 @@ typedef struct {
     char string[MAX_FILENAME_LEN];
 } filename_t;
 
-typedef struct {
-    char msg[MAX_LCDMESSAGE_LEN];
-    unsigned char duration; 
-} LCDmsg_t;
-
 #endif
