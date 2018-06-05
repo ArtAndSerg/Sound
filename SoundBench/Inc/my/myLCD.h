@@ -4,6 +4,7 @@
 #ifndef __MYLCD_H__
 #define __MYLCD_H__
 
+
 #define clNone   0
 #define clBlack  1
 #define clWhite  2

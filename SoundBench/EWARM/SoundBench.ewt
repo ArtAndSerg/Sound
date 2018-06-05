@@ -1183,6 +1183,9 @@
           <name>$PROJ_DIR$\..\Src\Tasks\MainTask.c</name>
         </file>
         <file>
+          <name>$PROJ_DIR$\..\Src\Tasks\sdCard.c</name>
+        </file>
+        <file>
           <name>$PROJ_DIR$\..\Src\Tasks\SoundTask.c</name>
         </file>
       </group>
@@ -1233,6 +1236,12 @@
       <name>STM32F1xx_HAL_Driver</name>
       <file>
         <name>$PROJ_DIR$\..\Drivers\STM32F1xx_HAL_Driver\Src\stm32f1xx_hal.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\Drivers\STM32F1xx_HAL_Driver\Src\stm32f1xx_hal_adc.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\Drivers\STM32F1xx_HAL_Driver\Src\stm32f1xx_hal_adc_ex.c</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\Drivers\STM32F1xx_HAL_Driver\Src\stm32f1xx_hal_cortex.c</name>

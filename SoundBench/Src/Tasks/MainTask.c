@@ -8,7 +8,7 @@
 
 extern osMessageQId KeysQueueHandle;
 
-#define ITEM_HEIGHT 10
+#define ITEM_HEIGHT 11
 #define ITEMS_MAXCOUNT 5
 
 
@@ -76,13 +76,13 @@ void showMenu(int x0, int y0, int selected, const menu_t *m)
     lcdClearAll();
     
     for (int i = 0; i < m->itemsCount; i++) {
-        tmp = lcdPrintf(x0 + 1, y0 + 1  + i * ITEM_HEIGHT, clWhite, clBlack, m->item[i].caption);
+        tmp = lcdPrintf(x0 + 2, y0 + 2  + i * ITEM_HEIGHT, clWhite, clBlack, m->item[i].caption);
         if (tmp > Xmax) {
             Xmax = tmp;
         }
     }
     if (selected >= 0 && selected < m->itemsCount) {
-        lcdRectangle(x0, y0 + selected * ITEM_HEIGHT, Xmax, y0 + (selected + 1) * ITEM_HEIGHT,  clInvert, clInvert, 1);
+        lcdRectangle(x0, y0 + selected * ITEM_HEIGHT, Xmax, y0 + (selected + 1) * ITEM_HEIGHT,  clWhite, clNone, 1);
     }   
     lcdUpdate();    
 }
@@ -92,6 +92,7 @@ void InitMainTask(void)
 {
     osDelay(500);
     showMenu(3, 3, 0, &menu[0]);
+    SD_Init();
 }
 //------------------------------------------------------------------------------
 
@@ -109,6 +110,7 @@ void MainTask(void)
     switch (key) {
       case '<' :  if (currMenuId) {
                       currMenuId = 0;
+                      currItem = 0;
                   }
                   break;
       case '>' :  currMenuId = menuId(currMenuId)->item[currItem].itemJumpTo;

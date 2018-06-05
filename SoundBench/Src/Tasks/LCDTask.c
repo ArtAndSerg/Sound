@@ -31,8 +31,8 @@
 extern osMutexId lcdMutexHandle;
 static uint8_t videoBuf[(LCD_WITDTH * LCD_HEIHGT) / 8];
 
-static void softSPIWrite(uint32_t data);
-static void lcdWriteArray(uint8_t *data, int len);
+static inline void softSPIWrite(uint32_t data);
+static inline void lcdWriteArray(uint8_t *data, int len);
 static int lcdPixel(int x, int y, int color); // color = 0 / 1 / 2(invert)
 
 void InitLcdTask(void)
@@ -167,10 +167,10 @@ void lcdRectangle(int left, int top, int right, int bottom, int colorOutline, in
         return;
     }
 
-    for (int x = left; x < right; x++) {
-        for (int y = top; y < bottom; y++) {
+    for (int x = left; x <= right; x++) {
+        for (int y = top; y <= bottom; y++) {
             if (x < left + thicknessOutline || x > right - thicknessOutline || 
-                y > top + thicknessOutline || y > bottom - thicknessOutline) {
+                y < top + thicknessOutline || y > bottom - thicknessOutline) {
                     lcdPixel(x, y, colorOutline);
                 } else {
                     lcdPixel(x, y, colorFill);
@@ -295,7 +295,7 @@ void lcdScreenSaver(void)
         lcdClearAll();
         lcdShowImage((uint8_t *)bmp, x, y, 128, 32, clWhite, clNone);
         lcdShowImage((uint8_t *)bmp, 64-x, 32 - y, 128, 32, clWhite, clNone);
-        lcdPrintf(x, 64-y, clWhite, clBlack, "Надёжная доствка! \f");               
+        lcdPrintf(x, 64-y, clWhite, clNone, "Надёжная доствка! \f");               
         lcdUpdate();
 }
 //------------------------------------------------------------------------------
@@ -306,7 +306,7 @@ void lcdTask(void)
 }
 //------------------------------------------------------------------------------
 
-static void lcdWriteArray(uint8_t *data, int len)
+static inline void lcdWriteArray(uint8_t *data, int len)
 {
     for (int i = 0; i < len; i++) {
        lcdData(data[i]); 
@@ -314,7 +314,7 @@ static void lcdWriteArray(uint8_t *data, int len)
 }
 //------------------------------------------------------------------------------
 
-static void softSPIWrite(uint32_t data)
+static inline void softSPIWrite(uint32_t data)
 {
     for(int i = 0; i < 24; i++){
         CLK_DOWN();    

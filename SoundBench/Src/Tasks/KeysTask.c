@@ -6,7 +6,7 @@
 #include "my/mylcd.h"
 
 #define ADC_COUNT     3  
-#define ADC_HALFBUF   20  
+#define ADC_HALFBUF   5  
 #define ADC_BUFSIZE   (2 * ADC_HALFBUF * ADC_COUNT)
 #define VREFINT       1203
 
@@ -28,6 +28,7 @@ void KeysTask(void)
 {
     uint8_t currKey = 0;
     static uint8_t prevKey = 0;
+    static int antiBounce = 0;
     
     xSemaphoreTake(adcReadySemHandle, portMAX_DELAY);
     if (adcU < 400) {
@@ -42,13 +43,18 @@ void KeysTask(void)
         currKey = 0;
     }
     xSemaphoreGive(adcReadySemHandle);
-    
-    if (currKey && currKey != prevKey) {
+    if (antiBounce == 3) {
         xQueueSend(KeysQueueHandle, &currKey, 1000);
+    }
+    if (currKey && currKey == prevKey) {
+        antiBounce++;
+        return;
+    } else {
+        antiBounce = 0;
     }
     prevKey = currKey;
     
-    osDelay(100);
+    osDelay(50);
 }
 //------------------------------------------------------------------------------
 
