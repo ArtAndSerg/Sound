@@ -6,35 +6,22 @@
 
 #include <stdint.h>
 
-//--------------------------------------------------
+#define SD_LOW_SPEED_PRESCALER  SPI_BAUDRATEPRESCALER_256
+#define SD_HIGH_SPEED_PRESCALER SPI_BAUDRATEPRESCALER_32
 
-// Definitions for MMC/SDC command
-#define CMD0 (0x40+0) // GO_IDLE_STATE
-#define CMD1 (0x40+1) // SEND_OP_COND (MMC)
-#define ACMD41 (0xC0+41) // SEND_OP_COND (SDC)
-#define CMD8 (0x40+8) // SEND_IF_COND
-#define CMD9 (0x40+9) // SEND_CSD
-#define CMD16 (0x40+16) // SET_BLOCKLEN
-#define CMD17 (0x40+17) // READ_SINGLE_BLOCK
-#define CMD24 (0x40+24) // WRITE_BLOCK
-#define CMD55 (0x40+55) // APP_CMD
-#define CMD58 (0x40+58) // READ_OCR
-//--------------------------------------------------
+#define SD_BLOCK_SIZE 512
+typedef uint32_t sd_addr_t;
 
-//* Card type flags (CardType) */
-#define CT_MMC 0x01 /* MMC ver 3 */
-#define CT_SD1 0x02 /* SD ver 1 */
-#define CT_SD2 0x04 /* SD ver 2 */
-#define CT_SDC (CT_SD1|CT_SD2) /* SD */
-#define CT_BLOCK 0x08 /* Block addressing */
-//--------------------------------------------------
+typedef enum {
+  SD_CARD_MMC,
+  SD_CARD_SD,
+  SD_CARD_SDHC
+} sd_card_type_t;
 
-typedef struct {
-  volatile uint8_t type;//тип карты
-} sd_info_ptr;
-//--------------------------------------------------
-
-void SD_PowerOn(void);
-uint8_t SD_Init(void);
+extern   sd_card_type_t    sd_card_type;
+uint8_t  sd_init(void);  // 0 if card ok
+uint8_t  sd_block_read(sd_addr_t block_addr, uint8_t* buf);
+uint8_t  sd_block_write(sd_addr_t block_addr, uint8_t* data);
+uint32_t sd_get_size(void);
 
 #endif

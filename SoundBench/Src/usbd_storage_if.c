@@ -51,7 +51,7 @@
 #include "usbd_storage_if.h"
 
 /* USER CODE BEGIN INCLUDE */
-
+#include "my/sdCard.h"
 /* USER CODE END INCLUDE */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -92,7 +92,7 @@
   */
 
 #define STORAGE_LUN_NBR                  1
-#define STORAGE_BLK_NBR                  0x10000
+//#define STORAGE_BLK_NBR                  0x10000
 #define STORAGE_BLK_SIZ                  0x200
 
 /* USER CODE BEGIN PRIVATE_DEFINES */
@@ -206,6 +206,7 @@ USBD_StorageTypeDef USBD_Storage_Interface_fops_FS =
 int8_t STORAGE_Init_FS(uint8_t lun)
 {
   /* USER CODE BEGIN 2 */
+   
   return (USBD_OK);
   /* USER CODE END 2 */
 }
@@ -220,7 +221,8 @@ int8_t STORAGE_Init_FS(uint8_t lun)
 int8_t STORAGE_GetCapacity_FS(uint8_t lun, uint32_t *block_num, uint16_t *block_size)
 {
   /* USER CODE BEGIN 3 */
-  *block_num  = STORAGE_BLK_NBR;
+ 
+  *block_num  = sd_get_size();//STORAGE_BLK_NBR;
   *block_size = STORAGE_BLK_SIZ;
   return (USBD_OK);
   /* USER CODE END 3 */
@@ -258,6 +260,12 @@ int8_t STORAGE_IsWriteProtected_FS(uint8_t lun)
 int8_t STORAGE_Read_FS(uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t blk_len)
 {
   /* USER CODE BEGIN 6 */
+  for (int i = 0; i < blk_len; i++) {
+      if (sd_block_read(blk_addr + i, &buf[STORAGE_BLK_SIZ * i])) {
+          printf("  fail!\n");
+          return USBD_FAIL;
+      }
+  }
   return (USBD_OK);
   /* USER CODE END 6 */
 }
@@ -270,6 +278,12 @@ int8_t STORAGE_Read_FS(uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t bl
 int8_t STORAGE_Write_FS(uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t blk_len)
 {
   /* USER CODE BEGIN 7 */
+    for (int i = 0; i < blk_len; i++) {
+      if (sd_block_write(blk_addr + i, &buf[STORAGE_BLK_SIZ * i])) {
+          printf("  fail!\n");
+          return USBD_FAIL;
+      }
+  }
   return (USBD_OK);
   /* USER CODE END 7 */
 }

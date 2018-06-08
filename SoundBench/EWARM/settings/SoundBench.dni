@@ -14,7 +14,7 @@ LeaveTargetRunning=_ 0
 stlinkserialNo=A501364C
 stlinkfoundProbes=
 [DebugChecksum]
-Checksum=673115625
+Checksum=-1461558755
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -107,8 +107,7 @@ ShowTiming=0
 [Disassemble mode]
 mode=0
 [Breakpoints2]
-Bp0=_ 0 "EMUL_CODE" "{$PROJ_DIR$\..\Src\Tasks\sdCard.c}.29.5" 0 0 1 "" 0 "" 0
-Count=1
+Count=0
 [Aliases]
 Count=0
 SuppressDialog=0

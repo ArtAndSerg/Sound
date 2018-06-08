@@ -5,6 +5,7 @@
 #include "my/myTasks.h"
 #include "cmsis_os.h"
 #include "my/mylcd.h"
+#include "my/sdCard.h"
 
 extern osMessageQId KeysQueueHandle;
 
@@ -90,9 +91,31 @@ void showMenu(int x0, int y0, int selected, const menu_t *m)
 
 void InitMainTask(void)
 {
+    int n = 0;
+    static uint8_t *buf;
     osDelay(500);
-    showMenu(3, 3, 0, &menu[0]);
-    SD_Init();
+    //showMenu(3, 3, 0, &menu[0]);
+    //SD_Init();  
+    
+    if (!myMalloc(&buf, 512, 1000)){
+       return;
+    }
+    
+    while (sd_init()) {
+        osDelay(1000);
+    }
+    printf("SD-card ok.\n");
+    sd_get_size();
+    sd_block_read(n, buf);
+    sd_get_size();
+   /*
+    while(1) {
+        sd_block_read(n, buf);
+        sd_block_read(n, buf);    
+        n++;
+        osDelay(1000);
+    }
+    */
 }
 //------------------------------------------------------------------------------
 

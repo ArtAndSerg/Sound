@@ -76,7 +76,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
         adcVdd = (VREFINT * 4096ul) / (sum[0] / ADC_HALFBUF);
         adcU   = sum[1] / (ADC_BUFSIZE / 6);
         adcT   = (VREFINT * sum[2]) / sum[0];  
-        HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
         xSemaphoreGiveFromISR(adcReadySemHandle, &xTaskWoken );
 	    if( xTaskWoken == pdTRUE) {
 	        taskYIELD();
@@ -103,7 +102,6 @@ void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
         adcVdd = (VREFINT * 4096ul) / (sum[0] / ADC_HALFBUF);
         adcU   = sum[1] / (ADC_BUFSIZE / 6);
         adcT   = (VREFINT * sum[2]) / sum[0];  
-        HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
         xSemaphoreGiveFromISR(adcReadySemHandle, &xTaskWoken );
 	    if( xTaskWoken == pdTRUE) {
 	        taskYIELD();

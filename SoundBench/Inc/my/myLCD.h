@@ -10,7 +10,7 @@
 #define clWhite  2
 #define clInvert 3
 
-#define LCD_WITDTH   128
+#define LCD_WITDTH   16//128
 #define LCD_HEIHGT   64
 
 void lcdUpdate(void);
