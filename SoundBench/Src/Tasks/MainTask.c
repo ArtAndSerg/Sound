@@ -2,11 +2,15 @@
 
 #include <string.h>
 #include <stdio.h>
-#include "my/myTasks.h"
+#include "fatfs.h"
+#include "main.h"
 #include "cmsis_os.h"
+#include "my/myTasks.h"
 #include "my/mylcd.h"
 #include "my/sdCard.h"
+#include "my/VS1053.h"
 
+extern SPI_HandleTypeDef hspi1;
 extern osMessageQId KeysQueueHandle;
 
 #define ITEM_HEIGHT 11
@@ -91,15 +95,45 @@ void showMenu(int x0, int y0, int selected, const menu_t *m)
 
 void InitMainTask(void)
 {
-    int n = 0;
+    uint32_t n = 0;
     static uint8_t *buf;
     osDelay(500);
     //showMenu(3, 3, 0, &menu[0]);
     //SD_Init();  
     
-    if (!myMalloc(&buf, 512, 1000)){
-       return;
+    osDelay(3000);
+    
+    
+    
+    //if (!myMalloc(&buf, 512, 1000)){
+   //    return;
+   // }
+       
+    disk_initialize(USERFatFS.drv);
+    if(f_mount(&USERFatFS,(TCHAR const*)USERPath, 0) != FR_OK) {
+        Error_Handler();
+    } else {
+        
+      while(1) {
+      osDelay(1000);    
+        if(f_open(&USERFile, "Tutti.mp3", FA_READ) != FR_OK) {
+            Error_Handler();
+        } else {
+    //        f_read(&USERFile, buf, 100, &n);
+            VS1053_play_file(&USERFile);
+            while (VS1053_getState() != PLAYER_PLAY) {
+                osDelay(100);
+            }
+            while (VS1053_getState() == PLAYER_PLAY) {
+                osDelay(100);
+            }
+            f_close(&USERFile);
+        }
+      }
     }
+    
+    
+    /*
     
     while (sd_init()) {
         osDelay(1000);

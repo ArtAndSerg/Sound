@@ -1188,6 +1188,9 @@
         <file>
           <name>$PROJ_DIR$\..\Src\Tasks\SoundTask.c</name>
         </file>
+        <file>
+          <name>$PROJ_DIR$\..\Src\Tasks\VS1053.c</name>
+        </file>
       </group>
       <file>
         <name>$PROJ_DIR$\..\Src\fatfs.c</name>
