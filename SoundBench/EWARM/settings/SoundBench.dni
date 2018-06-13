@@ -14,7 +14,7 @@ LeaveTargetRunning=_ 0
 stlinkserialNo=A501364C
 stlinkfoundProbes=
 [DebugChecksum]
-Checksum=590160899
+Checksum=1255441931
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -48,6 +48,8 @@ Fmt1=TIM_TypeDef-SR	4	0
 Fmt0={W}1:VSvolume	3	0
 Fmt1={W}1:arg	4	0
 Fmt2={W}1:data	1	0
+Fmt3={W}42:VScurvolume	3	0
+Fmt4={W}42:VSvolume	3	0
 [Trace2]
 Enabled=0
 ShowSource=0

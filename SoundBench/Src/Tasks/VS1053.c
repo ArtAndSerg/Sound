@@ -43,9 +43,9 @@ static void vs1053_spiSpeed(uint8_t speed) // 0 - 400kHz; 1 - 25MHz
 	int prescaler = SPI_BAUDRATEPRESCALER_256;
 
 	if (speed == 0)
-		prescaler = SPI_BAUDRATEPRESCALER_64;
+		prescaler = SPI_BAUDRATEPRESCALER_256;
 	else if (speed == 1)
-		prescaler = SPI_BAUDRATEPRESCALER_8;
+		prescaler = SPI_BAUDRATEPRESCALER_16;
 	taskENTER_CRITICAL();
 	VS1053_SPI.Init.BaudRatePrescaler = prescaler;
 	HAL_SPI_Init(&VS1053_SPI);
@@ -210,8 +210,9 @@ void VS1053_Init(void)
 	//sine_test();
 	
 	vs1053_write_reg(SCI_VOL, 60, 60);
-    vs1053_write_reg(SCI_MODE, 0x48 | (SM_SDISHARE >> 8), 0x00);
+    vs1053_write_reg(SCI_MODE, 0x88, SM_RESET); 
 	slog("4");
+    osDelay(100);
 	int MP3Mode = vs1053_read_reg(SCI_MODE);
 	int MP3Status = vs1053_read_reg(SCI_STATUS);
 	int MP3Clock = vs1053_read_reg(SCI_CLOCKF);
@@ -220,15 +221,22 @@ void VS1053_Init(void)
   printf("SCI_Mode (0x4800) = 0x%x\n", MP3Mode);
 
   printf("SCI_Status (0x48) = 0x%x\n", MP3Status);
-
+  
   int vsVersion = (MP3Status >> 4) & 0x000F; //Mask out only the four version bits
   printf("VS Version (VS1053 is 4) = 0x%x\n", vsVersion); //The 1053B should respond with 4. VS1001 = 0, VS1011 = 1, VS1002 = 2, VS1003 = 3
 
   printf("SCI_ClockF = 0x%x\n", MP3Clock);
-	vs1053_write_reg(SCI_CLOCKF, 0x60, 0x00); //set clock x3
-	
-	vs1053_read_parametric();
-	
+  vs1053_write_reg(SCI_CLOCKF, 0x88, 0x00); 
+
+  MP3Clock = vs1053_read_reg(SCI_CLOCKF);
+  printf("SCI_ClockF = 0x%x\n", MP3Clock);
+  vs1053_write_reg(SCI_MODE, 0x08, SM_RESET); 
+  slog("4");
+  osDelay(100);
+  
+  vs1053_write_reg(SCI_VOL, 60, 60);
+  vs1053_read_parametric();
+
 
 }
 
@@ -276,9 +284,9 @@ void VS1053_thread(void)
 {
 	slog("VS1053_thread");
 	uint8_t need = 1, last = PLAYER_STOP;
-	uint8_t buf[32] = {0};
+	static uint8_t buf[32] = {0};
 	UINT br = 0;
-	uint8_t res = 0;
+	static uint8_t res = 0, stat = 0;
 
 	slog("\n\nVS1053_thread started\n");
 	vs1053_write_reg_16(SCI_DECODE_TIME, 0); //reset time
@@ -286,9 +294,12 @@ void VS1053_thread(void)
    // vs1053_spiSpeed(0);
 	while(1)
 	{		
-		while(_VS1053_curState != PLAYER_STOP && VS1053_filechanged != 1 && (VS1053_curFile == _VS1053_curFile || VS1053_curFile == 0) && _VS1053_curFile != 0)
+        while(_VS1053_curState != PLAYER_STOP && VS1053_filechanged != 1 && (VS1053_curFile == _VS1053_curFile || VS1053_curFile == 0) && _VS1053_curFile != 0)
 		{
-			//slog("pl");
+			if (stat) {
+                printf("SCI_Status (0x48) = 0x%x\n", vs1053_read_reg(SCI_STATUS));
+                stat = 0;
+            }
 			while(VS1053_curState == PLAYER_PAUSE) //PAUSE
 			{
 				vs1053_update_parametric(); 
@@ -333,7 +344,8 @@ void VS1053_thread(void)
 			if(_VS1053_curState != PLAYER_STOP)
 			{
 				taskENTER_CRITICAL();
-				HAL_GPIO_WritePin(VS1053_xDCS, GPIO_PIN_RESET); //Select data
+				//HAL_GPIO_WritePin(VS1053_xCS, GPIO_PIN_RESET);
+                HAL_GPIO_WritePin(VS1053_xDCS, GPIO_PIN_RESET); //Select data
 				HAL_SPI_Transmit(&VS1053_SPI, buf, br, 1);      //trasmit data
 				HAL_GPIO_WritePin(VS1053_xDCS, GPIO_PIN_SET);   //deSelect data
 				taskEXIT_CRITICAL();
@@ -379,9 +391,27 @@ void VS1053_thread(void)
 			slog("Start play, %d", vs1053_read_reg(SCI_CLOCKF));
 			_VS1053_curState = PLAYER_PLAY;
 			vs1053_write_reg_16(SCI_DECODE_TIME, 0); //reset time
-			vs1053_write_reg_16(SCI_DECODE_TIME, 0); //reset time
-			_VS1053_curFile = VS1053_curFile;
+            vs1053_write_reg(SCI_VOL, 60, 60);
+            _VS1053_curFile = VS1053_curFile;
+            vs1053_read_parametric();
 			VS1053_filechanged  = 0;
+            vs1053_spiSpeed(1);
+            
+       while(1) {
+            if (HAL_GPIO_ReadPin(VS1053_DREQ) == GPIO_PIN_SET)
+			{
+					res = f_read(_VS1053_curFile, &buf, 32, &br);
+					taskENTER_CRITICAL();
+				    HAL_GPIO_WritePin(VS1053_xCS, GPIO_PIN_RESET);
+                    HAL_GPIO_WritePin(VS1053_xDCS, GPIO_PIN_RESET); //Select data
+				    HAL_SPI_Transmit(&VS1053_SPI, buf, 32, 100);      //trasmit data
+				    HAL_GPIO_WritePin(VS1053_xDCS, GPIO_PIN_SET);   //deSelect data
+				    taskEXIT_CRITICAL();
+            } else {
+                buf[0] = 0;
+            }
+       }     
+            
 		}
 		else
 		{
