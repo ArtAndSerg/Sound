@@ -80,6 +80,7 @@ osMessageQId SoundQueueHandle;
 osMessageQId KeysQueueHandle;
 osMutexId SDcardMutexHandle;
 osMutexId lcdMutexHandle;
+osMutexId soundMutexHandle;
 osSemaphoreId SoundSemHandle;
 osSemaphoreId adcReadySemHandle;
 
@@ -159,6 +160,10 @@ int main(void)
   /* definition and creation of lcdMutex */
   osMutexDef(lcdMutex);
   lcdMutexHandle = osMutexCreate(osMutex(lcdMutex));
+
+  /* definition and creation of soundMutex */
+  osMutexDef(soundMutex);
+  soundMutexHandle = osMutexCreate(osMutex(soundMutex));
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */

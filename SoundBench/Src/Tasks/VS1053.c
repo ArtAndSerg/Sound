@@ -1,59 +1,245 @@
 
 #include <stdio.h>
+#include "stm32f1xx_hal.h"
 #include "my/VS1053.h"
+#include "cmsis_os.h"
+#define VS1053_Delay    osDelay
+#define debugLog        printf
 
-#define slog  printf
+// Hardware config
+#define VS1053_SPI      hspi1
+#define VS1053_xCS      VS_CS_GPIO_Port, VS_CS_Pin
+#define VS1053_xDCS     VS_DCS_GPIO_Port, VS_DCS_Pin
+#define VS1053_xRST     VS_RESET_GPIO_Port, VS_RESET_Pin 
+#define VS1053_DREQ     VS_DREQ_GPIO_Port, VS_DREQ_Pin
 
-extern SPI_HandleTypeDef VS1053_SPI;
+#define slog            printf
+#define SPI_LOW_SPEED   SPI_BAUDRATEPRESCALER_256
+#define SPI_HI_SPEED    SPI_BAUDRATEPRESCALER_16
+#define DEFAULT_VOLUME  60
+#define VS1053_TIMEOUT  300
 
-VS1053_parametric parametric;
-FIL* VS1053_curFile = 0;
-uint8_t VS1053_filechanged = 0;
-char* VS1053_curFilPath = 0;
-uint8_t VS1053_curState = PLAYER_STOP;
+extern SPI_HandleTypeDef  VS1053_SPI;
 
-PlayerInfo* VS1053_curPlayer = 0;
+#ifdef osCMSIS
+extern osMutexId soundMutexHandle;
+#endif
 
-uint8_t VS1053_set_player(PlayerInfo* player)
+PLAYER_State curState = PLAYER_ERROR;
+
+static void spiWrite (uint8_t *buf, int len);
+static void spiRead  (uint8_t *buf, int len);
+static void spiReadWrite (uint8_t *bufTx, uint8_t *bufRx, int len);
+static VS1053_result writeReg(uint8_t addressbyte, uint16_t value)
+
+static void spiWrite (uint8_t *buf, int len)
 {
-	if(VS1053_curPlayer == player)
-		return SYS_OK;
-	if(VS1053_curPlayer != 0)
-	{
-		VS1053_curPlayer->stop();
-	}
-	VS1053_curPlayer = 0;
-	if(player->start() == SYS_OK)
-	{
-		VS1053_curPlayer = player;
-		return SYS_OK;
-	}
-	return SYS_ERROR;
+    if (HAL_SPI_Transmit(&VS1053_SPI, buf, len, 100) != HAL_OK) {      //trasmit data
+        debugLog("ERROR! VS1053 SPI WRITE ERROR!!!\n");
+    }
 }
-PlayerInfo* VS1053_get_player(void)
+//-----------------------------------------------------------------------------
+
+static void spiRead (uint8_t *buf, int len)
 {
-	return VS1053_curPlayer;
+    if (HAL_SPI_Receive(&VS1053_SPI, buf, len, 100) != HAL_OK) {      //trasmit data
+        debugLog("ERROR! VS1053 SPI READ ERROR!!!\n");
+    }
 }
+//-----------------------------------------------------------------------------
 
-uint8_t VS1053_getState(void);
+static void spiReadWrite (uint8_t *bufTx, uint8_t *bufRx, int len);
+{
+    if (HAL_SPI_TransmitReceive(&VS1053_SPI, bufTx, bufRx, len, 100) != HAL_OK) {      //trasmit data
+        debugLog("ERROR! VS1053 SPI READ <=> WRITE ERROR!!!\n");
+    }
+}
+//-----------------------------------------------------------------------------
 
-static void vs1053_spiSpeed(uint8_t speed) // 0 - 400kHz; 1 - 25MHz
+
+static void vs1053_spiSpeed(uint8_t speed) 
 {
 	//CHECK YOUR APB1 FREQ!!!
-	int prescaler = SPI_BAUDRATEPRESCALER_256;
-
-	if (speed == 0)
-		prescaler = SPI_BAUDRATEPRESCALER_256;
-	else if (speed == 1)
-		prescaler = SPI_BAUDRATEPRESCALER_16;
-	taskENTER_CRITICAL();
-	VS1053_SPI.Init.BaudRatePrescaler = prescaler;
-	HAL_SPI_Init(&VS1053_SPI);
-	taskEXIT_CRITICAL();
+	VS1053_SPI.Init.BaudRatePrescaler = speed;
+    for (int i = 1; i < 100; i++) {
+        if (HAL_SPI_Init(&VS1053_SPI) == HAL_OK) {
+            return;
+        }
+    }
+    debugLog("ERROR! Can't init SPI!");
 }
+//----------------------------------------------------------------------------
 
-uint8_t VSvolume = 60, VScurvolume = 60;
 
+//Write to VS10xx register
+//SCI: Data transfers are always 16bit. When a new SCI operation comes in 
+//DREQ goes low. We then have to wait for DREQ to go high again.
+//XCS should be low for the full duration of operation.
+static VS1053_result writeReg(uint8_t addressbyte, uint16_t value)
+{
+	//taskENTER_CRITICAL();
+  uint32_t timer = HAL_GetTick();
+  uint8_t  buf[4] = {0x02}; //Write instruction
+      
+  while(HAL_GPIO_ReadPin(VS1053_DREQ) == GPIO_PIN_RESET) { //Wait for DREQ to go high indicating IC is available
+      if (HAL_GetTick() - timer > VS1053_TIMEOUT) {
+          debugLog("ERROR! VS1053 DREQ pin timeout at start of cmd(0x%02X, 0x%04X)!\n", addressbyte, value);
+          return VS1053_ERROR;
+      }
+  }
+  HAL_GPIO_WritePin(VS1053_xCS, GPIO_PIN_RESET); //Select control
+  //SCI consists of instruction byte, address byte, and 16-bit data word.
+  buf[1] = addressbyte;
+  buf[2] = value >> 8;
+  buf[3] = value & 0xFF;
+  spiWrite(buf, 4);
+  timer = HAL_GetTick();
+  
+  while(HAL_GPIO_ReadPin(VS1053_DREQ) == GPIO_PIN_RESET) { //Wait for DREQ to go high indicating command is complete
+	if (HAL_GetTick() - timer > VS1053_TIMEOUT) {
+          debugLog("ERROR! VS1053 DREQ pin timeout at end of cmd(0x%02X, 0x%04X)!\n", addressbyte, value);
+          HAL_GPIO_WritePin(VS1053_xCS, GPIO_PIN_SET); //Deselect Control
+          return VS1053_ERROR;
+    }
+    HAL_GPIO_WritePin(VS1053_xCS, GPIO_PIN_SET); //Deselect Control
+	//taskEXIT_CRITICAL();
+    return VS1053_OK;
+}
+//------------------------------------------------------------------------------
+
+//Read the 16-bit value of a VS10xx register
+static uint16_t readReg (uint8_t addressbyte){
+	
+  //taskENTER_CRITICAL();
+  uint32_t timer = HAL_GetTick();
+  uint8_t  respH, respL buf[4] = {0x03}; //Read instruction
+      
+  while(HAL_GPIO_ReadPin(VS1053_DREQ) == GPIO_PIN_RESET) { //Wait for DREQ to go high indicating IC is available
+      if (HAL_GetTick() - timer > VS1053_TIMEOUT) {
+          debugLog("ERROR! VS1053 DREQ pin timeout at start of read(0x%02X)!\n", addressbyte);
+          return 0xFFFF;
+      }
+  }
+  HAL_GPIO_WritePin(VS1053_xCS, GPIO_PIN_RESET); //Select control
+  //SCI consists of instruction byte, address byte, and 16-bit data word.
+  buf[1] = addressbyte;
+  spiWrite(buf, 2);
+  
+  spiRead (&respH, 1);
+  timer = HAL_GetTick();
+  while(HAL_GPIO_ReadPin(VS1053_DREQ) == GPIO_PIN_RESET) { //Wait for DREQ to go high indicating command is complete
+	if (HAL_GetTick() - timer > VS1053_TIMEOUT) {
+          debugLog("ERROR! VS1053 DREQ pin timeout at H-byte read(0x%02X)!\n", addressbyte);
+          HAL_GPIO_WritePin(VS1053_xCS, GPIO_PIN_SET); //Deselect Control
+          return 0xFFFF;
+    }
+  }
+
+  spiRead (&respL, 1);
+  timer = HAL_GetTick();
+  while(HAL_GPIO_ReadPin(VS1053_DREQ) == GPIO_PIN_RESET) { //Wait for DREQ to go high indicating command is complete
+	if (HAL_GetTick() - timer > VS1053_TIMEOUT) {
+          debugLog("ERROR! VS1053 DREQ pin timeout at L-byte read(0x%02X)!\n", addressbyte);
+          HAL_GPIO_WritePin(VS1053_xCS, GPIO_PIN_SET); //Deselect Control
+          return 0xFFFF;
+    }
+  }
+  HAL_GPIO_WritePin(VS1053_xCS, GPIO_PIN_SET); //Deselect Control
+  //taskEXIT_CRITICAL();
+  
+  return ((uint16_t)respH << 8) | respL;
+}
+//------------------------------------------------------------------------------
+ 
+VS1053_result VS1053_Init(void)
+{
+ #ifdef osCMSIS
+    if (xSemaphoreTake(lcdMutexHandle, LCD_MUTEX_TIMEOUT) != pdPASS) {
+        return VS1053_BUSY;
+    }
+ #endif   
+    VS1053_result res = VS1053_OK;
+    debugLog("\nVS1053 init...\n");
+	HAL_GPIO_WritePin(VS1053_xCS,  GPIO_PIN_SET);
+    HAL_GPIO_WritePin(VS1053_xDCS, GPIO_PIN_SET); //deSelect data
+	HAL_GPIO_WritePin(VS1053_xRST, GPIO_PIN_RESET);
+	VS1053_Delay(1);
+	HAL_GPIO_WritePin(VS1053_xRST, GPIO_PIN_SET);
+	vs1053_spiSpeed(SPI_LOW_SPEED);
+	VS1053_Delay(3);
+	//sine_test();
+    res = vs1053_writeReg(SCI_MODE, SM_CLK_RANGE | SM_SDINEW);
+    res = vs1053_writeReg(SCI_CLOCKF, 0x8800); 
+    
+    int MP3Mode   = readReg(SCI_MODE);
+	int MP3Status = readReg(SCI_STATUS);
+	int MP3Clock  = readReg(SCI_CLOCKF);
+    int vsVersion = (MP3Status >> 4) & 0x000F; //Mask out only the four version bits
+    printf("SCI_Mode (0x4800) = 0x%x\n", MP3Mode);
+    printf("SCI_Status (0x48) = 0x%x\n", MP3Status);
+    printf("VS Version (VS1053 is 4) = 0x%x\n", vsVersion); //The 1053B should respond with 4. VS1001 = 0, VS1011 = 1, VS1002 = 2, VS1003 = 3
+    printf("SCI_ClockF = 0x%x\n", MP3Clock);
+    res = writeReg(SCI_VOL, DEFAULT_VOLUME, DEFAULT_VOLUME);
+    if (res == VS1053_OK) {
+        curState = PLAYER_STOP;
+        vs1053_spiSpeed(SPI_HI_SPEED);
+    } else {
+        curState = PLAYER_ERROR;
+    }
+    debugLog("ok.\n");
+ 
+  #ifdef osCMSIS
+    xSemaphoreGive(lcdMutexHandle);
+  #endif 
+    return res;
+}
+//----------------------------------------------------------------------------
+
+VS1053_result VS1053_setVolume(uint8_t vol)
+{
+  #ifdef osCMSIS
+    if (xSemaphoreTake(lcdMutexHandle, LCD_MUTEX_TIMEOUT) != pdPASS) {
+        return VS1053_BUSY;
+    }
+  #endif  
+  
+    VS1053_result res = writeReg(SCI_VOL, vol | (vol << 8));  
+  
+  #ifdef osCMSIS
+    xSemaphoreGive(lcdMutexHandle);
+  #endif 
+    return res;
+}
+//----------------------------------------------------------------------------
+
+PLAYER_State VS1053_getState(void) {
+    return curState;
+}
+//----------------------------------------------------------------------------
+
+VS1053_result VS1053_play(void) 
+{
+    #ifdef osCMSIS
+    if (xSemaphoreTake(lcdMutexHandle, LCD_MUTEX_TIMEOUT) != pdPASS) {
+        return VS1053_BUSY;
+    }
+  #endif  
+  
+    VS1053_result res = writeReg(SCI_DECODE_TIME, 0);  
+    curState = PLAYER_PLAY; 
+  
+  #ifdef osCMSIS
+    xSemaphoreGive(lcdMutexHandle);
+  #endif 
+    return res;
+}
+//----------------------------------------------------------------------------
+
+VS1053_result VS1053_addData(uint8_t *buf, int size)
+{
+    
+}
+//----------------------------------------------------------------------------
 
 void vs1053_trans(uint8_t data)
 {
@@ -64,23 +250,6 @@ uint8_t vs1053_txrx(uint8_t data)
 	uint8_t rec;
 	HAL_SPI_TransmitReceive(&VS1053_SPI, &data, &rec, sizeof(data), 10);
 	return rec;
-}
-//Write to VS10xx register
-//SCI: Data transfers are always 16bit. When a new SCI operation comes in 
-//DREQ goes low. We then have to wait for DREQ to go high again.
-//XCS should be low for the full duration of operation.
-void vs1053_write_reg(uint8_t addressbyte, uint8_t highbyte, uint8_t lowbyte){
-	taskENTER_CRITICAL();
-  while(HAL_GPIO_ReadPin(VS1053_DREQ) == GPIO_PIN_RESET) slog("w"); //Wait for DREQ to go high indicating IC is available	
-	HAL_GPIO_WritePin(VS1053_xCS, GPIO_PIN_RESET); //Select control
-  //SCI consists of instruction byte, address byte, and 16-bit data word.
-  vs1053_trans(0x02); //Write instruction
-  vs1053_trans(addressbyte);
-  vs1053_trans(highbyte);
-  vs1053_trans(lowbyte);
-  while(HAL_GPIO_ReadPin(VS1053_DREQ) == GPIO_PIN_RESET) slog("w"); //Wait for DREQ to go high indicating command is complete
-	HAL_GPIO_WritePin(VS1053_xCS, GPIO_PIN_SET); //Deselect Control
-	taskEXIT_CRITICAL();
 }
 
 //Read the 16-bit value of a VS10xx register
@@ -186,59 +355,6 @@ void vs1053_read_parametric(void)
 	slog("par %d %d %d", parametric.version, parametric.config1, parametric.playSpeed);
 }
 
-void VS1053_Init(void)
-{
-	printf("VS1053 initing\n");
-	HAL_GPIO_WritePin(VS1053_xCS, GPIO_PIN_RESET);
-	VS1053_rstD();
-	osDelay(1);
-	slog("1");
-	VS1053_rstU();
-	HAL_GPIO_WritePin(VS1053_xCS, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(VS1053_xDCS, GPIO_PIN_SET);
-	osDelay(1);
-	slog("2");
-	VS1053_rstD();
-	
-	vs1053_spiSpeed(0);
-	vs1053_trans(0xFF);
-	
-	osDelay(10);
-	slog("3");
-	VS1053_rstU();
-	
-	//sine_test();
-	
-	vs1053_write_reg(SCI_VOL, 60, 60);
-    vs1053_write_reg(SCI_MODE, 0x88, SM_RESET); 
-	slog("4");
-    osDelay(100);
-	int MP3Mode = vs1053_read_reg(SCI_MODE);
-	int MP3Status = vs1053_read_reg(SCI_STATUS);
-	int MP3Clock = vs1053_read_reg(SCI_CLOCKF);
-
-
-  printf("SCI_Mode (0x4800) = 0x%x\n", MP3Mode);
-
-  printf("SCI_Status (0x48) = 0x%x\n", MP3Status);
-  
-  int vsVersion = (MP3Status >> 4) & 0x000F; //Mask out only the four version bits
-  printf("VS Version (VS1053 is 4) = 0x%x\n", vsVersion); //The 1053B should respond with 4. VS1001 = 0, VS1011 = 1, VS1002 = 2, VS1003 = 3
-
-  printf("SCI_ClockF = 0x%x\n", MP3Clock);
-  vs1053_write_reg(SCI_CLOCKF, 0x88, 0x00); 
-
-  MP3Clock = vs1053_read_reg(SCI_CLOCKF);
-  printf("SCI_ClockF = 0x%x\n", MP3Clock);
-  vs1053_write_reg(SCI_MODE, 0x08, SM_RESET); 
-  slog("4");
-  osDelay(100);
-  
-  vs1053_write_reg(SCI_VOL, 60, 60);
-  vs1053_read_parametric();
-
-
-}
 
 uint8_t _vs1053_par_start = 0;
 void vs1053_update_parametric(void)
