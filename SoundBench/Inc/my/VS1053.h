@@ -33,5 +33,6 @@ VS1053_result VS1053_Init(void);
 int VS1053_process(void); // return count of needed more bytes 
 VS1053_result VS1053_addData(uint8_t *buf, int size);
 VS1053_result VS1053_setVolume(uint8_t vol);
+VS1053_result VS1053_sineTest(void);
 
 #endif

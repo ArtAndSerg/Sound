@@ -92,22 +92,25 @@ void showMenu(int x0, int y0, int selected, const menu_t *m)
     lcdUpdate();    
 }
 //-----------------------------------------------------------------------------
-
+#define BUF_SIZE    (2048)//(50 * VS1053_MAX_TRANSFER_SIZE)
 void InitMainTask(void)
 {
-    uint32_t n = 0;
-    static uint8_t *buf;
+    uint32_t n = 0, timer;
+    static uint8_t *buf, *readBuf, *writeBuf, *tmp;
+    int writePtr = BUF_SIZE;
     osDelay(500);
     //showMenu(3, 3, 0, &menu[0]);
     //SD_Init();  
     
-    osDelay(3000);
+    //osDelay(3000);
     
     
     
-    //if (!myMalloc(&buf, 512, 1000)){
-   //    return;
-   // }
+    if (!myMalloc(&buf,   BUF_SIZE, 1000)){
+        return;
+    }
+    readBuf  = &buf[0];
+    writeBuf = &buf[BUF_SIZE];
        
     disk_initialize(USERFatFS.drv);
     if(f_mount(&USERFatFS,(TCHAR const*)USERPath, 0) != FR_OK) {
@@ -116,14 +119,34 @@ void InitMainTask(void)
         
       while(1) {
       osDelay(1000);    
-        if(f_open(&USERFile, "Tutti.mp3", FA_READ) != FR_OK) {
+        if(f_open(&USERFile, "Kato.mp3", FA_READ) != FR_OK) {
             Error_Handler();
         } else {
-    //        f_read(&USERFile, buf, 100, &n);
-            VS1053_play_file(&USERFile);
-            while (VS1053_getState() != PLAYER_PLAY) {
-                osDelay(100);
-            }
+            VS1053_process();
+            VS1053_process();
+            
+            
+            VS1053_play();
+            
+            do {                
+                osDelay(20);
+                f_read(&USERFile, buf, BUF_SIZE, &n);
+                osDelay(20);
+                writePtr = 0;
+                do {
+                    n = VS1053_process();
+                    if (n) {
+                       VS1053_addData(&buf[writePtr], n);
+                       writePtr += n;
+                    } else {
+                       osDelay(0);
+                    }
+                } while(writePtr < BUF_SIZE);               
+            } while (1);
+            
+            
+            
+            
             while (VS1053_getState() == PLAYER_PLAY) {
                 osDelay(100);
             }

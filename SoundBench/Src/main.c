@@ -188,7 +188,7 @@ int main(void)
 
   /* Create the thread(s) */
   /* definition and creation of mainTask */
-  osThreadDef(mainTask, StartMainTask, osPriorityNormal, 0, 128);
+  osThreadDef(mainTask, StartMainTask, osPriorityNormal, 0, 256);
   mainTaskHandle = osThreadCreate(osThread(mainTask), NULL);
 
   /* definition and creation of SoundTask */
