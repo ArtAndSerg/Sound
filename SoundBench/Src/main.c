@@ -585,7 +585,7 @@ void StartKeysTask(void const * argument)
     /* Infinite loop */
   for(;;)
   {
-    //KeysTask();
+    KeysTask();
     osDelay(1);
   }
   /* USER CODE END StartKeysTask */

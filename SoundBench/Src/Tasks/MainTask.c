@@ -109,8 +109,6 @@ void InitMainTask(void)
     if (!myMalloc(&buf,   BUF_SIZE, 1000)){
         return;
     }
-    readBuf  = &buf[0];
-    writeBuf = &buf[BUF_SIZE];
        
     disk_initialize(USERFatFS.drv);
     if(f_mount(&USERFatFS,(TCHAR const*)USERPath, 0) != FR_OK) {
@@ -122,33 +120,21 @@ void InitMainTask(void)
         if(f_open(&USERFile, "Kato.mp3", FA_READ) != FR_OK) {
             Error_Handler();
         } else {
-            VS1053_process();
-            VS1053_process();
-            
-            
             VS1053_play();
-            
-            do {                
+            for (int i = 0; i < 10; i++) {
                 osDelay(20);
                 f_read(&USERFile, buf, BUF_SIZE, &n);
                 osDelay(20);
-                writePtr = 0;
-                do {
-                    n = VS1053_process();
-                    if (n) {
-                       VS1053_addData(&buf[writePtr], n);
-                       writePtr += n;
-                    } else {
-                       osDelay(0);
-                    }
-                } while(writePtr < BUF_SIZE);               
-            } while (1);
+                VS1053_addData(buf, n);
+            }
+            f_close(&USERFile);
             
-            
-            
-            
-            while (VS1053_getState() == PLAYER_PLAY) {
-                osDelay(100);
+            f_open(&USERFile, "Tutti.mp3", FA_READ);
+            for (int i = 0; i < 30; i++) {
+                osDelay(20);
+                f_read(&USERFile, buf, BUF_SIZE, &n);
+                osDelay(20);
+                VS1053_addData(buf, n);
             }
             f_close(&USERFile);
         }

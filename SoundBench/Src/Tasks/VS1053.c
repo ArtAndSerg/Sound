@@ -21,7 +21,7 @@
 
 #ifdef  osCMSIS
   extern osMutexId soundMutexHandle;
-  #define __LOCK_VS1053()      if (xSemaphoreTake(soundMutexHandle, VS1053_TIMEOUT) != pdPASS) { return VS1053_BUSY; }
+  #define __LOCK_VS1053()      if (xSemaphoreTake(soundMutexHandle, VS1053_TIMEOUT) != pdPASS) {xSemaphoreGive(soundMutexHandle); return VS1053_BUSY; }
   #define __UNLOCK_VS1053()   xSemaphoreGive(soundMutexHandle)
 #else  
   #define __LOCK_VS1053()
@@ -206,7 +206,7 @@ VS1053_result VS1053_Init(void)
 
 VS1053_result VS1053_setVolume(uint8_t vol)
 {
-    __UNLOCK_VS1053();
+    __LOCK_VS1053();
    
     currVolume = vol;
     VS1053_result res = writeReg(SCI_VOL, currVolume | (currVolume << 8));  
@@ -224,8 +224,14 @@ PLAYER_State VS1053_getState(void) {
 
 VS1053_result VS1053_play(void) 
 {
+    VS1053_result res = VS1053_ERROR;
     curState = PLAYER_PLAY;  
-    return VS1053_OK;
+    if (VS1053_Init() == VS1053_OK) {
+        __LOCK_VS1053(); 
+        res = writeReg(SCI_DECODE_TIME, 0);  
+        __UNLOCK_VS1053();
+    }
+    return res;
 }
 //----------------------------------------------------------------------------
 
@@ -254,6 +260,7 @@ VS1053_result VS1053_addData(uint8_t *buf, int size)
 }
 //----------------------------------------------------------------------------
 
+/*
 int VS1053_process(void) // return count of needed more bytes 
 {
     static PLAYER_State pState = PLAYER_STOP;
@@ -267,11 +274,7 @@ int VS1053_process(void) // return count of needed more bytes
       
       case PLAYER_PLAY:
         if (pState != PLAYER_PLAY && pState != PLAYER_PAUSE) {
-            if (VS1053_Init() == VS1053_OK) {
-                __LOCK_VS1053(); 
-                res = writeReg(SCI_DECODE_TIME, 0);  
-                __UNLOCK_VS1053();
-            }
+            
         } else {
             if (HAL_GPIO_ReadPin(VS1053_DREQ) == GPIO_PIN_SET) {
                 neededDataLen = VS1053_MAX_TRANSFER_SIZE;
@@ -299,6 +302,7 @@ int VS1053_process(void) // return count of needed more bytes
     return neededDataLen;
 }
 //----------------------------------------------------------------------------
+*/
 
 VS1053_result VS1053_sineTest(void)
 {	
