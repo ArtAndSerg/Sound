@@ -238,9 +238,12 @@ VS1053_result VS1053_play(void)
 VS1053_result VS1053_addData(uint8_t *buf, int size)
 {
     int writePtr = 0;
-    
+    if (!size) {
+        curState = PLAYER_STOP;
+        return VS1053_OK;
+    }
     __LOCK_VS1053();
-  
+    
     //HAL_GPIO_WritePin(VS1053_xCS, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(VS1053_xDCS, GPIO_PIN_RESET); //Select data
 	while(size > 0) {

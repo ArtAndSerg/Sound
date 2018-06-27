@@ -51,7 +51,6 @@
 #include "stm32f1xx_hal.h"
 #include "cmsis_os.h"
 #include "fatfs.h"
-#include "usb_device.h"
 
 /* USER CODE BEGIN Includes */
 #include "my/myTypes.h"
@@ -285,11 +284,9 @@ void SystemClock_Config(void)
     _Error_Handler(__FILE__, __LINE__);
   }
 
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_RTC|RCC_PERIPHCLK_ADC
-                              |RCC_PERIPHCLK_USB;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_RTC|RCC_PERIPHCLK_ADC;
   PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
   PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
-  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLL_DIV1_5;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
@@ -530,9 +527,6 @@ static void MX_GPIO_Init(void)
 /* StartMainTask function */
 void StartMainTask(void const * argument)
 {
-  /* init code for USB_DEVICE */
-  MX_USB_DEVICE_Init();
-
   /* init code for FATFS */
   MX_FATFS_Init();
 
@@ -543,7 +537,7 @@ void StartMainTask(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-    //MainTask();
+    MainTask();
     osDelay(1);
   }
   /* USER CODE END 5 */ 
@@ -599,8 +593,8 @@ void StartLCDTask(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-    //lcdTask();   
-    //osDelay(1);
+    lcdTask();   
+    osDelay(1);
   }
   /* USER CODE END StartLCDTask */
 }

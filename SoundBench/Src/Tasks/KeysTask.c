@@ -32,19 +32,15 @@ void KeysTask(void)
     static uint8_t prevKey = 0;
     static int antiBounce = 0;
     
-    osDelay(50);
+    osDelay(10);
     xSemaphoreTake(adcReadySemHandle, portMAX_DELAY);
     if (adcU < 400) {
         currKey = '<';
-        VS1053_setVolume(150);
     } else if (adcU < 1200) {
-        VS1053_setVolume(50);
-        currKey = '-';
-    } else if (adcU < 1900) {
-        VS1053_setVolume(0);
         currKey = '+';
+    } else if (adcU < 1900) {
+        currKey = '-';
     } else if (adcU < 3000) {
-        VS1053_setVolume(30);
         currKey = '>';
     } else {
         currKey = 0;
@@ -59,9 +55,7 @@ void KeysTask(void)
     } else {
         antiBounce = 0;
     }
-    prevKey = currKey;
-    
-    
+    prevKey = currKey;    
 }
 //------------------------------------------------------------------------------
 

@@ -285,17 +285,24 @@ void lcdShowImage(unsigned char *data, int x0, int y0, int width, int height, in
 
 void lcdScreenSaver(void)
 {
-        static int x = 0 , y = 0, dx = 1, dy = 1;
+       
+        static int x = -30 , y = 0, dx = 1, dy = -1, px, py, ppx, ppy;
         x += dx;
         y += dy;
-        if (y <= 0)   dy = 1;
-        if (y == 40)  dy = -1;
-        if (x == -64) dx = 1;
-        if (x == 64)  dx = -1;
-        lcdClearAll();
-        lcdShowImage((uint8_t *)bmp, x, y, 128, 32, clWhite, clNone);
-        lcdShowImage((uint8_t *)bmp, 64-x, 32 - y, 128, 32, clWhite, clNone);
-        lcdPrintf(x, 64-y, clWhite, clNone, "Надёжная доствка! \f");               
+        if (y < -(LOGO_HEIGHT - LCD_HEIHGT))   dy = 1;
+        if (y > 23)  dy = -1;
+        if (x < -LOGO_WIDTH / 2) dx = 1;
+        if (x > LOGO_WIDTH / 2)  dx = -1;
+        
+        
+        lcdShowImage((uint8_t *)bmp, ppx, ppy, LOGO_WIDTH, LOGO_HEIGHT, clBlack, clNone);
+        lcdShowImage((uint8_t *)bmp, px, py, LOGO_WIDTH, LOGO_HEIGHT, clWhite, clNone);
+        lcdShowImage((uint8_t *)bmp, x, y, LOGO_WIDTH, LOGO_HEIGHT, clWhite, clNone);
+        ppx = px; px = x;
+        ppy = py; py = y;
+       // lcdShowImage((uint8_t *)bmp2, x, y, LOGO2_WIDTH, LOGO2_HEIGHT, clWhite, clNone);
+        //lcdShowImage((uint8_t *)bmp, LCD_HEIHGT - x, LOGO_HEIGHT - y, LOGO_WIDTH, LOGO_HEIGHT, clWhite, clNone);
+        //lcdPrintf(x, LCD_HEIHGT - y, clWhite, clNone, "Надёжная доствка! \f");               
         lcdUpdate();
 }
 //------------------------------------------------------------------------------
