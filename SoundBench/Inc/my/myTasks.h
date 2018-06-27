@@ -18,8 +18,8 @@ void gsmTask(void);
 void KeysTask(void);
 void lcdTask(void);
 
-int myMalloc(uint8_t **buf, uint32_t size, uint32_t timeout);
-int myCalloc(uint8_t **buf, uint32_t size, uint32_t timeout);
-void myFree(uint8_t **buf);
+int  myMalloc(void **buf, uint32_t size, uint32_t timeout);
+int  myCalloc(void **buf, uint32_t size, uint32_t timeout);
+void myFree(void **buf);
 
 #endif

@@ -501,7 +501,7 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin : VS_DREQ_Pin */
   GPIO_InitStruct.Pin = VS_DREQ_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(VS_DREQ_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : VS_DCS_Pin VS_CS_Pin SD_SS_Pin CS_Pin 

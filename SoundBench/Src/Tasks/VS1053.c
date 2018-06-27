@@ -237,7 +237,9 @@ VS1053_result VS1053_play(void)
 
 VS1053_result VS1053_addData(uint8_t *buf, int size)
 {
-    int writePtr = 0;
+    int writePtr = 0, timeout = 0;
+    
+    
     if (!size) {
         curState = PLAYER_STOP;
         return VS1053_OK;
@@ -246,20 +248,24 @@ VS1053_result VS1053_addData(uint8_t *buf, int size)
     
     //HAL_GPIO_WritePin(VS1053_xCS, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(VS1053_xDCS, GPIO_PIN_RESET); //Select data
-	while(size > 0) {
+	while(size > 0 && timeout < 200) {
         if (HAL_GPIO_ReadPin(VS1053_DREQ) == GPIO_PIN_SET) {
+            timeout = 0;
             HAL_SPI_Transmit(&VS1053_SPI, buf, VS1053_MAX_TRANSFER_SIZE, 100);      //trasmit data
             buf += VS1053_MAX_TRANSFER_SIZE;
             size -= VS1053_MAX_TRANSFER_SIZE;
         } else {
             VS1053_Delay(1);
+            timeout++;
         }
     }
 	HAL_GPIO_WritePin(VS1053_xDCS, GPIO_PIN_SET);   //deSelect data
   
     __UNLOCK_VS1053();
-    
-    return VS1053_OK;
+    if (timeout < 200) {
+        return VS1053_OK;
+    }
+    return VS1053_ERROR;
 }
 //----------------------------------------------------------------------------
 
