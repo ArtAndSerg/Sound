@@ -71,17 +71,16 @@ DMA_HandleTypeDef hdma_usart3_rx;
 DMA_HandleTypeDef hdma_usart3_tx;
 
 osThreadId mainTaskHandle;
-osThreadId SoundTaskHandle;
 osThreadId GSMTaskHandle;
 osThreadId KeysTaskHandle;
-osThreadId LCDTaskHandle;
+osThreadId lcdTaskHandle;
 osMessageQId SoundQueueHandle;
 osMessageQId KeysQueueHandle;
 osMutexId SDcardMutexHandle;
-osMutexId lcdMutexHandle;
 osMutexId soundMutexHandle;
 osSemaphoreId SoundSemHandle;
 osSemaphoreId adcReadySemHandle;
+osSemaphoreId lcdSemHandle;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -98,10 +97,9 @@ static void MX_SPI2_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_ADC1_Init(void);
 void StartMainTask(void const * argument);
-void StartSoundTask(void const * argument);
 void StartGSMTask(void const * argument);
 void StartKeysTask(void const * argument);
-void StartLCDTask(void const * argument);
+void StartLcdTask(void const * argument);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -156,10 +154,6 @@ int main(void)
   osMutexDef(SDcardMutex);
   SDcardMutexHandle = osMutexCreate(osMutex(SDcardMutex));
 
-  /* definition and creation of lcdMutex */
-  osMutexDef(lcdMutex);
-  lcdMutexHandle = osMutexCreate(osMutex(lcdMutex));
-
   /* definition and creation of soundMutex */
   osMutexDef(soundMutex);
   soundMutexHandle = osMutexCreate(osMutex(soundMutex));
@@ -177,6 +171,10 @@ int main(void)
   osSemaphoreDef(adcReadySem);
   adcReadySemHandle = osSemaphoreCreate(osSemaphore(adcReadySem), 1);
 
+  /* definition and creation of lcdSem */
+  osSemaphoreDef(lcdSem);
+  lcdSemHandle = osSemaphoreCreate(osSemaphore(lcdSem), 1);
+
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
@@ -187,12 +185,8 @@ int main(void)
 
   /* Create the thread(s) */
   /* definition and creation of mainTask */
-  osThreadDef(mainTask, StartMainTask, osPriorityNormal, 0, 256);
+  osThreadDef(mainTask, StartMainTask, osPriorityAboveNormal, 0, 512);
   mainTaskHandle = osThreadCreate(osThread(mainTask), NULL);
-
-  /* definition and creation of SoundTask */
-  osThreadDef(SoundTask, StartSoundTask, osPriorityAboveNormal, 0, 128);
-  SoundTaskHandle = osThreadCreate(osThread(SoundTask), NULL);
 
   /* definition and creation of GSMTask */
   osThreadDef(GSMTask, StartGSMTask, osPriorityBelowNormal, 0, 128);
@@ -202,9 +196,9 @@ int main(void)
   osThreadDef(KeysTask, StartKeysTask, osPriorityNormal, 0, 128);
   KeysTaskHandle = osThreadCreate(osThread(KeysTask), NULL);
 
-  /* definition and creation of LCDTask */
-  osThreadDef(LCDTask, StartLCDTask, osPriorityIdle, 0, 128);
-  LCDTaskHandle = osThreadCreate(osThread(LCDTask), NULL);
+  /* definition and creation of lcdTask */
+  osThreadDef(lcdTask, StartLcdTask, osPriorityLow, 0, 128);
+  lcdTaskHandle = osThreadCreate(osThread(lcdTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -543,20 +537,6 @@ void StartMainTask(void const * argument)
   /* USER CODE END 5 */ 
 }
 
-/* StartSoundTask function */
-void StartSoundTask(void const * argument)
-{
-  /* USER CODE BEGIN StartSoundTask */
-  InitSoundTask();
-    /* Infinite loop */
-  for(;;)
-  {
-    SoundTask();  
-    osDelay(1);
-  }
-  /* USER CODE END StartSoundTask */
-}
-
 /* StartGSMTask function */
 void StartGSMTask(void const * argument)
 {
@@ -585,18 +565,18 @@ void StartKeysTask(void const * argument)
   /* USER CODE END StartKeysTask */
 }
 
-/* StartLCDTask function */
-void StartLCDTask(void const * argument)
+/* StartLcdTask function */
+void StartLcdTask(void const * argument)
 {
-  /* USER CODE BEGIN StartLCDTask */
-    InitLcdTask();
+  /* USER CODE BEGIN StartLcdTask */
+  InitLcdTask();  
   /* Infinite loop */
   for(;;)
   {
-    lcdTask();   
+    LcdTask();  
     osDelay(1);
   }
-  /* USER CODE END StartLCDTask */
+  /* USER CODE END StartLcdTask */
 }
 
 /**

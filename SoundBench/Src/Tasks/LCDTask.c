@@ -25,21 +25,16 @@
 
 #define lcdCmd(a)   softSPIWrite(0x00F80000ul | (((uint16_t)(a) << 8) & 0xF000) | (((a) << 4) & 0xF0))
 #define lcdData(a)  softSPIWrite(0x00FA0000ul | (((uint16_t)(a) << 8) & 0xF000) | (((a) << 4) & 0xF0))
-#define lcdClear()  memset(videoBuf, 0, sizeof(videoBuf))
 
+extern osSemaphoreId lcdSemHandle;
 
-extern osMutexId lcdMutexHandle;
 static uint8_t videoBuf[(LCD_WITDTH * LCD_HEIHGT) / 8];
 
 static inline void softSPIWrite(uint32_t data);
 static inline void lcdWriteArray(uint8_t *data, int len);
-static int lcdPixel(int x, int y, int color); // color = 0 / 1 / 2(invert)
 
 void InitLcdTask(void)
 {
-    if (xSemaphoreTake(lcdMutexHandle, LCD_MUTEX_TIMEOUT) != pdPASS) {
-        return;
-    }
     memset(videoBuf, 0, sizeof(videoBuf));
     osDelay(50);
     CS_UP();
@@ -51,26 +46,15 @@ void InitLcdTask(void)
     lcdCmd(0x01);
     osDelay(10);
     CS_DOWN();
-    xSemaphoreGive(lcdMutexHandle);
+    lcdClearAll();
+    xSemaphoreTake(lcdSemHandle, 0);
 }
 //------------------------------------------------------------------------------
 
-void lcdClearAll(void) 
+void LcdTask(void)
 {
-    if (xSemaphoreTake(lcdMutexHandle, LCD_MUTEX_TIMEOUT) != pdPASS) {
-        return;
-    }
-    lcdClear();
-    xSemaphoreGive(lcdMutexHandle);
-}
-//------------------------------------------------------------------------------
-
-void lcdUpdate(void)
-{ 
-    if (xSemaphoreTake(lcdMutexHandle, LCD_MUTEX_TIMEOUT) != pdPASS) {
-        return;
-    }
-        CS_UP();
+    xSemaphoreTake(lcdSemHandle, portMAX_DELAY);
+    CS_UP();
     lcdCmd(0x36);
     for (uint8_t y = 0; y < 32; y++) {  
         lcdCmd(0x80 + y); 
@@ -78,11 +62,24 @@ void lcdUpdate(void)
         lcdWriteArray(&videoBuf[32 * y], 32);    
     }
     CS_DOWN();  
-    xSemaphoreGive(lcdMutexHandle);
+    xSemaphoreGive(lcdSemHandle);    
 }
 //------------------------------------------------------------------------------
 
-static int lcdPixel(int x, int y, int color) // color = 0 / 1 / 2(invert)
+void lcdUpdate(void)
+{ 
+  xSemaphoreGive(lcdSemHandle);    
+    
+}
+//------------------------------------------------------------------------------
+
+void lcdClearAll(void) 
+{
+    memset(videoBuf, 0, sizeof(videoBuf));
+}
+//------------------------------------------------------------------------------
+
+int lcdPixel(int x, int y, int color) // color = 0 / 1 / 2(invert)
 {
     int n = 0;
     if  (color == clNone || x < 0 || x >= LCD_WITDTH || y < 0 || y >= LCD_HEIHGT) {
@@ -107,9 +104,6 @@ static int lcdPixel(int x, int y, int color) // color = 0 / 1 / 2(invert)
  
 void lcdcircle(int X1, int Y1, int R, int color)
 {
-   if (xSemaphoreTake(lcdMutexHandle, LCD_MUTEX_TIMEOUT) != pdPASS) {
-        return;
-   }
    int x = 0;
    int y = R;
    int delta = 1 - 2 * R;
@@ -137,15 +131,11 @@ void lcdcircle(int X1, int Y1, int R, int color)
        delta += 2 * (x - y);
        y--;
    }
-   xSemaphoreGive(lcdMutexHandle);
 }
 //------------------------------------------------------------------------------
 
 void lcdLine(int x0, int y0, int x1, int y1, int color) 
 {
-  if (xSemaphoreTake(lcdMutexHandle, LCD_MUTEX_TIMEOUT) != pdPASS) {
-        return;
-  }
   int dx = abs(x1-x0), sx = x0<x1 ? 1 : -1;
   int dy = abs(y1-y0), sy = y0<y1 ? 1 : -1;
   int err = (dx>dy ? dx : -dy)/2, e2;
@@ -157,16 +147,11 @@ void lcdLine(int x0, int y0, int x1, int y1, int color)
     if (e2 >-dx) { err -= dy; x0 += sx; }
     if (e2 < dy) { err += dx; y0 += sy; }
   }
-  xSemaphoreGive(lcdMutexHandle);
 }
 //-----------------------------------------------------------------------------
 
 void lcdRectangle(int left, int top, int right, int bottom, int colorOutline, int colorFill, int thicknessOutline) 
 {
-    if (xSemaphoreTake(lcdMutexHandle, LCD_MUTEX_TIMEOUT) != pdPASS) {
-        return;
-    }
-
     for (int x = left; x <= right; x++) {
         for (int y = top; y <= bottom; y++) {
             if (x < left + thicknessOutline || x > right - thicknessOutline || 
@@ -177,16 +162,11 @@ void lcdRectangle(int left, int top, int right, int bottom, int colorOutline, in
                 }    
         }
     }
-    xSemaphoreGive(lcdMutexHandle);
 }
 //-----------------------------------------------------------------------------
 
 int lcdPrintf(int xStart, int yStart, int colorFont, int colorBack, const char *format, ...)
 {
-  if (xSemaphoreTake(lcdMutexHandle, LCD_MUTEX_TIMEOUT) != pdPASS) {
-        return 0;
-  }
-
   unsigned char *str, symbol;
   int len;
   int x0 = xStart, y0 = yStart, leftBlank, xMax, xMin;
@@ -257,17 +237,12 @@ int lcdPrintf(int xStart, int yStart, int colorFont, int colorBack, const char *
       }
   }
   myFree(&str);
-  xSemaphoreGive(lcdMutexHandle);
   return x0;
 }
 //------------------------------------------------------------------------------
 
 void lcdShowImage(unsigned char *data, int x0, int y0, int width, int height, int colorFront, int colorBack)
 {
-    if (xSemaphoreTake(lcdMutexHandle, LCD_MUTEX_TIMEOUT) != pdPASS) {
-        return;
-    }
-
     int n = 0;
     for (int x = x0; x < x0 + width; x++) {
         for (int y = y0; y < y0 + height; y++) {
@@ -279,7 +254,6 @@ void lcdShowImage(unsigned char *data, int x0, int y0, int width, int height, in
             n++;    
         }
     }
-    xSemaphoreGive(lcdMutexHandle);
 }
 //------------------------------------------------------------------------------
 
@@ -304,12 +278,6 @@ void lcdScreenSaver(void)
         //lcdShowImage((uint8_t *)bmp, LCD_HEIHGT - x, LOGO_HEIGHT - y, LOGO_WIDTH, LOGO_HEIGHT, clWhite, clNone);
         //lcdPrintf(x, LCD_HEIHGT - y, clWhite, clNone, "Надёжная доствка! \f");               
         lcdUpdate();
-}
-//------------------------------------------------------------------------------
-
-void lcdTask(void)
-{
-        osDelay(50000);              
 }
 //------------------------------------------------------------------------------
 

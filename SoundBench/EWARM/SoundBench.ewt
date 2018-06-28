@@ -1186,9 +1186,6 @@
           <name>$PROJ_DIR$\..\Src\Tasks\sdCard.c</name>
         </file>
         <file>
-          <name>$PROJ_DIR$\..\Src\Tasks\SoundTask.c</name>
-        </file>
-        <file>
           <name>$PROJ_DIR$\..\Src\Tasks\VS1053.c</name>
         </file>
       </group>
@@ -1209,18 +1206,6 @@
       </file>
       <file>
         <name>$PROJ_DIR$\..\Src\stm32f1xx_it.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\Src\usb_device.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\Src\usbd_conf.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\Src\usbd_desc.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\Src\usbd_storage_if.c</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\Src\user_diskio.c</name>
@@ -1265,12 +1250,6 @@
         <name>$PROJ_DIR$\..\Drivers\STM32F1xx_HAL_Driver\Src\stm32f1xx_hal_gpio_ex.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\Drivers\STM32F1xx_HAL_Driver\Src\stm32f1xx_hal_pcd.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\Drivers\STM32F1xx_HAL_Driver\Src\stm32f1xx_hal_pcd_ex.c</name>
-      </file>
-      <file>
         <name>$PROJ_DIR$\..\Drivers\STM32F1xx_HAL_Driver\Src\stm32f1xx_hal_pwr.c</name>
       </file>
       <file>
@@ -1300,15 +1279,15 @@
       <file>
         <name>$PROJ_DIR$\..\Drivers\STM32F1xx_HAL_Driver\Src\stm32f1xx_hal_uart.c</name>
       </file>
-      <file>
-        <name>$PROJ_DIR$\..\Drivers\STM32F1xx_HAL_Driver\Src\stm32f1xx_ll_usb.c</name>
-      </file>
     </group>
   </group>
   <group>
     <name>Middlewares</name>
     <group>
       <name>FatFs</name>
+      <file>
+        <name>$PROJ_DIR$\..\Middlewares\Third_Party\FatFs\src\option\ccsbcs.c</name>
+      </file>
       <file>
         <name>$PROJ_DIR$\..\Middlewares\Third_Party\FatFs\src\diskio.c</name>
       </file>
@@ -1353,30 +1332,6 @@
       </file>
       <file>
         <name>$PROJ_DIR$\..\Middlewares\Third_Party\FreeRTOS\Source\timers.c</name>
-      </file>
-    </group>
-    <group>
-      <name>USB_Device_Library</name>
-      <file>
-        <name>$PROJ_DIR$\..\Middlewares\ST\STM32_USB_Device_Library\Core\Src\usbd_core.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\Middlewares\ST\STM32_USB_Device_Library\Core\Src\usbd_ctlreq.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\Middlewares\ST\STM32_USB_Device_Library\Core\Src\usbd_ioreq.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\Middlewares\ST\STM32_USB_Device_Library\Class\MSC\Src\usbd_msc.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\Middlewares\ST\STM32_USB_Device_Library\Class\MSC\Src\usbd_msc_bot.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\Middlewares\ST\STM32_USB_Device_Library\Class\MSC\Src\usbd_msc_data.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\Middlewares\ST\STM32_USB_Device_Library\Class\MSC\Src\usbd_msc_scsi.c</name>
       </file>
     </group>
   </group>

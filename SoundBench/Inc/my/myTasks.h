@@ -16,7 +16,7 @@ void MainTask(void);
 void SoundTask(void);
 void gsmTask(void);
 void KeysTask(void);
-void lcdTask(void);
+void LcdTask(void);
 
 int  myMalloc(void **buf, uint32_t size, uint32_t timeout);
 int  myCalloc(void **buf, uint32_t size, uint32_t timeout);

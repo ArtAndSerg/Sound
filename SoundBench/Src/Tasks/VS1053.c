@@ -204,11 +204,17 @@ VS1053_result VS1053_Init(void)
 }
 //----------------------------------------------------------------------------
 
-VS1053_result VS1053_setVolume(uint8_t vol)
+VS1053_result VS1053_setVolume(int vol)
 {
     __LOCK_VS1053();
-   
-    currVolume = vol;
+    if (vol > 100) {
+        vol = 100;
+    }
+    if (vol < 0) {
+        vol = 0;
+    }
+    
+    currVolume = 100 - vol;
     VS1053_result res = writeReg(SCI_VOL, currVolume | (currVolume << 8));  
     
     __UNLOCK_VS1053();

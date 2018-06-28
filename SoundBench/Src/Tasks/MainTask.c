@@ -28,8 +28,9 @@ void showError(char *text);
 
 void InitMainTask(void)
 {
+    memset((void*)&currFile, 0, sizeof(FILINFO));        
     while (1) {
-        memset((void*)&currFile, 0, sizeof(FILINFO));
+        myFree((void**)&currFile.lfname);
         myFree((void**)&currPath);
         myFree((void**)&currFileName);
         currItem = 0;
@@ -38,9 +39,8 @@ void InitMainTask(void)
         disk_initialize(USERFatFS.drv);
         lcdClearAll();
         lcdUpdate();
-        if (myCalloc((void**)&currPath, 3 * (_MAX_LFN + 1), 500) && myCalloc((void**)&currFileName, _MAX_LFN + 1, 500)) {
+        if (myCalloc((void**)&currPath, 3 * (_MAX_LFN + 1), 500) && myCalloc((void**)&currFileName, _MAX_LFN + 1, 500) && myCalloc((void**)&currFile.lfname, _MAX_LFN + 1, 500)) {
                 currFile.lfsize = _MAX_LFN + 1;
-                currFile.lfname = currFileName;
                 if (f_mount(&USERFatFS,(TCHAR const*)USERPath, 0) == FR_OK) {
                     break;
                 } else {
@@ -68,6 +68,7 @@ void showError(char *text)
 
 void dirToDisplay(void)
 {
+    char *tmp;
     FRESULT res = FR_OK;
     DIR dir;
     FILINFO fno;
@@ -96,12 +97,22 @@ void dirToDisplay(void)
         
         if (n >= currItem - (currItem % 6) && n < currItem - (currItem % 6) + 6) {
             y = n % 6;
-            lcdPrintf(2, 2 + y * ITEM_HEIGHT, clWhite, clBlack, fno.lfname);
             if (n == currItem) {
-                lcdRectangle(0, y * ITEM_HEIGHT, 125, (y + 1) * (ITEM_HEIGHT),  clWhite, clNone, 1);
+                tmp = currFile.lfname;
                 currFile = fno;
-                currFile.lfname = currFileName;
-                memcpy((void*)currFile.lfname, (void*)fno.lfname, fno.lfsize);
+                currFile.lfname = tmp;
+                memcpy((void*)currFile.lfname, (void*)fno.lfname,     fno.lfsize);                
+            }
+            
+            tmp = strrchr(fno.lfname, '.');
+            if (tmp != NULL) {
+                *tmp = '\0';
+            }
+            y = n % 6;
+            lcdPrintf(2, 2 + y * ITEM_HEIGHT, clWhite, clBlack, &fno.lfname[3]);            
+            if (n == currItem) {
+                memcpy((void*)currFileName,    (void*)&fno.lfname[3], fno.lfsize - 3);
+                lcdRectangle(0, y * ITEM_HEIGHT, 127, (y + 1) * (ITEM_HEIGHT),  clWhite, clNone, 1);
             }
         }
         n++;
@@ -112,21 +123,54 @@ void dirToDisplay(void)
 }
 //------------------------------------------------------------------------------
 
+void scrollCurrentItem(int pos) 
+{
+    static int x0 = 0, delay = 0;
+    int y = currItem % 6;
+    int width;
+    
+    if (delay) {
+        delay--;
+    }
+    if (strlen(currFileName) > 16 && !delay) {
+        if (!x0) {
+          delay = 10;
+        }
+        x0++;
+        if (!pos) {
+            x0 = 1;
+        }
+        width = lcdPrintf(2 - x0, 2 + y * ITEM_HEIGHT, clWhite, clBlack, currFileName);            
+        if (width < LCD_WITDTH - 8) {
+            x0 = 0; 
+        }
+        lcdRectangle(0, y * ITEM_HEIGHT, 127, (y + 1) * (ITEM_HEIGHT),  clWhite, clNone, 1);
+        lcdUpdate();
+    }
+}
+//------------------------------------------------------------------------------
+
 void MainTask(void)
 {
     char key;
-    int playNext;      
-    
-    if (xQueueReceive(KeysQueueHandle, &key, 10000) != pdPASS) {
-        lcdClearAll();
-        while (xQueueReceive(KeysQueueHandle, &key, 150) != pdPASS) {
-           lcdScreenSaver();
+    int playNext;
+    uint32_t timer;
+        
+    if (xQueueReceive(KeysQueueHandle, &key, 1000) != pdPASS) {
+        for (timer = 0; timer < 100 && xQueueReceive(KeysQueueHandle, &key, 200) != pdPASS; timer++) {
+            scrollCurrentItem(timer);
+        }
+        if (timer == 100) {
+            lcdClearAll();
+            while (xQueueReceive(KeysQueueHandle, &key, 150) != pdPASS) {
+                lcdScreenSaver();
+            }
         }
     }
     switch (key) {
         case '<' :  
             if (strchr(currPath, '/') != NULL) {
-                *strchr(currPath, '/') = '\0';
+                *strrchr(currPath, '/') = '\0';
             }
             currItem = 0;            
             break;
@@ -134,18 +178,19 @@ void MainTask(void)
         case '>' : 
             if (currFile.fattrib & AM_DIR) {
                 strcat(currPath, "/");
-                strcat(currPath, currFileName);
+                strcat(currPath, currFile.lfname);
                 currItem = 0;                            
                 dirToDisplay();
             } else {
                 do {
                     dirToDisplay();
                     strcat(currPath, "/");
-                    strcat(currPath, currFileName);
+                    strcat(currPath, currFile.lfname);
                     playNext = executeFile(currPath);
                     *strrchr(currPath, '/') = '\0';
                     if (currItem >= itemsCount) {
                         currItem = 0;
+                        break;
                     }
                 } while(playNext);
             }
@@ -170,12 +215,17 @@ void MainTask(void)
 
 int executeFile(char *fileName)
 {
-    static uint8_t volume = 60;
+    int num = 0;
+    int pos = 0;
+    char str[10];
+    static int volume = 50;
     uint8_t *buf;
     uint32_t n;
     char key;
     int playNext = 0;  
+    int witdh;
     
+    memset(str, 0, sizeof(str));
     if (VS1053_play() != VS1053_OK) {
         showError("декодера");
         return 0;
@@ -191,23 +241,45 @@ int executeFile(char *fileName)
     }
     
     VS1053_setVolume(volume);
+    lcdClearAll();
+    witdh = lcdPrintf(0, 0, clWhite, clBlack, currFileName);            
     do {
         f_read(&USERFile, buf, BUF_SIZE, &n);
+        if ((num & 0x03) == 0 || key) {
+            if ((num & 0x07) == 0) {
+                pos++;    
+            }    
+            lcdClearAll();
+            lcdPrintf(1 - pos % witdh, 10, clWhite, clBlack, currFileName);            
+            lcdPrintf(witdh + 32 - pos % witdh, 10, clWhite, clBlack, currFileName);            
+            lcdRectangle(1, 30, 125, 38,  clWhite, clNone, 1);
+            lcdRectangle(3, 32, 12300 / ((USERFile.fsize * 100) / USERFile.fptr), 36,  clWhite, clWhite, 0);
+            sprintf(str, "%d%%", volume);
+            lcdPrintf(10, 52, clWhite, clBlack, str);            
+            for(int i = 0; i < volume/4 + 4; i++) {
+                for(int j = 0; j < i/2; j++) {
+                   lcdPixel(50 + 2*i,  56-j, clWhite);
+                }
+            }            
+            lcdUpdate();
+        }
+        num++;               
         if (!n) {
              currItem++;
              playNext = 1;
         }
+        key = 0;
         if (xQueueReceive(KeysQueueHandle, &key, 10) == pdPASS) {
             switch(key) {
-              case '-': 
-                 if (volume > 9) {
-                     volume -= 10;
+              case '+': 
+                 if (volume > 5) {
+                     volume -= 5;
                  }
                  VS1053_setVolume(volume);
                  break;
-              case '+': 
-                 if (volume < 255-10) {
-                     volume += 10;
+              case '-': 
+                 if (volume < 100) {
+                     volume += 5;
                  }
                  VS1053_setVolume(volume);
                  break;  
