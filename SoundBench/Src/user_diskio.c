@@ -110,11 +110,7 @@ DSTATUS USER_initialize (
 )
 {
   /* USER CODE BEGIN INIT */
-    Stat = STA_NOINIT;
-    while (sd_init()) {
-        osDelay(1000);
-    }
-    Stat = 0;
+    Stat = sd_init();
     return Stat;
   /* USER CODE END INIT */
 }

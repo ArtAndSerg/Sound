@@ -91,12 +91,12 @@ DSTATUS disk_initialize (
 	BYTE pdrv				/* Physical drive nmuber to identify the drive */
 )
 {
-  DSTATUS stat = RES_OK;
-  
-  if(disk.is_initialized[pdrv] == 0)
-  { 
-    disk.is_initialized[pdrv] = 1;
-    stat = disk.drv[pdrv]->disk_initialize(disk.lun[pdrv]);
+  DSTATUS stat;
+  stat = disk.drv[pdrv]->disk_initialize(disk.lun[pdrv]);
+  if (stat == RES_OK) {
+      disk.is_initialized[pdrv] = 1;    
+  } else {
+      disk.is_initialized[pdrv] = 0;
   }
   return stat;
 }
