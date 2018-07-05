@@ -53,8 +53,9 @@
 #include "fatfs.h"
 
 /* USER CODE BEGIN Includes */
+
 #include "my/myTypes.h"
-#include "my/myTasks.h"     
+      
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -81,6 +82,7 @@ osMutexId soundMutexHandle;
 osSemaphoreId SoundSemHandle;
 osSemaphoreId adcReadySemHandle;
 osSemaphoreId lcdSemHandle;
+osSemaphoreId gsmTxSemHandle;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -174,6 +176,10 @@ int main(void)
   /* definition and creation of lcdSem */
   osSemaphoreDef(lcdSem);
   lcdSemHandle = osSemaphoreCreate(osSemaphore(lcdSem), 1);
+
+  /* definition and creation of gsmTxSem */
+  osSemaphoreDef(gsmTxSem);
+  gsmTxSemHandle = osSemaphoreCreate(osSemaphore(gsmTxSem), 1);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
@@ -417,7 +423,7 @@ static void MX_USART3_UART_Init(void)
 {
 
   huart3.Instance = USART3;
-  huart3.Init.BaudRate = 115200;
+  huart3.Init.BaudRate = 9600;
   huart3.Init.WordLength = UART_WORDLENGTH_8B;
   huart3.Init.StopBits = UART_STOPBITS_1;
   huart3.Init.Parity = UART_PARITY_NONE;
@@ -474,11 +480,14 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, VS_RESET_Pin|POWER_KEY_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(VS_RESET_GPIO_Port, VS_RESET_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, VS_DCS_Pin|VS_CS_Pin|SD_SS_Pin|CS_Pin 
                           |SCK_Pin|MOSI_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(POWER_KEY_GPIO_Port, POWER_KEY_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin : LED_Pin */
   GPIO_InitStruct.Pin = LED_Pin;

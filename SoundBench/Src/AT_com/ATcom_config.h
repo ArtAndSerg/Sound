@@ -1,0 +1,15 @@
+#ifndef	_WIFICONFIG_H
+#define	_WIFICONFIG_H
+
+#define		_ATCOM_RX_SIZE				512
+#define		_ATCOM_RX_FOR_DATA_SIZE		1024
+#define		_ATCOM_TX_SIZE				256
+#define		_ATCOM_TASK_SIZE			512
+
+
+#define		_ATCOM_WAIT_TIME_LOW	        1000
+#define		_ATCOM_WAIT_TIME_MED			10000
+#define		_ATCOM_WAIT_TIME_HIGH			25000
+#define		_ATCOM_WAIT_TIME_VERYHIGH		60000
+
+#endif
