@@ -423,7 +423,7 @@ static void MX_USART3_UART_Init(void)
 {
 
   huart3.Instance = USART3;
-  huart3.Init.BaudRate = 9600;
+  huart3.Init.BaudRate = 115200;
   huart3.Init.WordLength = UART_WORDLENGTH_8B;
   huart3.Init.StopBits = UART_STOPBITS_1;
   huart3.Init.Parity = UART_PARITY_NONE;
@@ -531,16 +531,16 @@ static void MX_GPIO_Init(void)
 void StartMainTask(void const * argument)
 {
   /* init code for FATFS */
-  MX_FATFS_Init();
+  //MX_FATFS_Init();
 
   /* USER CODE BEGIN 5 */
   
-  InitMainTask();
+  //InitMainTask();
   
   /* Infinite loop */
   for(;;)
   {
-    MainTask();
+    //MainTask();
     osDelay(1);
   }
   /* USER CODE END 5 */ 
@@ -564,11 +564,11 @@ void StartGSMTask(void const * argument)
 void StartKeysTask(void const * argument)
 {
   /* USER CODE BEGIN StartKeysTask */
-  InitKeysTask();
+  //InitKeysTask();
     /* Infinite loop */
   for(;;)
   {
-    KeysTask();
+   // KeysTask();
     osDelay(1);
   }
   /* USER CODE END StartKeysTask */
@@ -578,11 +578,11 @@ void StartKeysTask(void const * argument)
 void StartLcdTask(void const * argument)
 {
   /* USER CODE BEGIN StartLcdTask */
-  InitLcdTask();  
+  //InitLcdTask();  
   /* Infinite loop */
   for(;;)
   {
-    LcdTask();  
+   // LcdTask();  
     osDelay(1);
   }
   /* USER CODE END StartLcdTask */

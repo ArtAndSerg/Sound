@@ -136,45 +136,73 @@ uint32_t AT_Gets(ATcom_t *com, char *str, uint32_t strSize, uint32_t timeout)
 }
 //---------------------------------------------------------------------------
     
-int AT_Command(ATcom_t *com, char *command, uint32_t timeout, uint32_t countOfParameters, ...)
+AT_result_t AT_Command(ATcom_t *com, int *result, char *command, uint32_t timeout, uint32_t countOfParameters, ...)
 {	
     char *waitingParam[WAIT_PARAM_MAX_COUNT];
     uint8_t n[WAIT_PARAM_MAX_COUNT];
     char  byte;
+    uint32_t timer = 0, commandLen, m = 0;
     
-    AT_SendString(com, command);
-    osDelay(ATCOM_MIN_TIMEOUT);
-    if (countOfParameters > WAIT_PARAM_MAX_COUNT) {
-        com->errorProcessingCallback("To many param (arguments)", countOfParameters);
-        return 0; 
+    
+    if (countOfParameters > WAIT_PARAM_MAX_COUNT || com == NULL || command == NULL) {
+        com->errorProcessingCallback("AT_Command format error", countOfParameters);
+        return AT_ERROR_FORMAT; 
     }
-    if (!countOfParameters) {
-        return 0;
+    if (!AT_SendString(com, command)) {
+        return AT_ERROR_SEND;
     }
+    do{
+        osDelay(ATCOM_MIN_TIMEOUT);        
+        timer += ATCOM_MIN_TIMEOUT;
+        while (AT_GetByte(com, (uint8_t*)&byte)) {
+            if (command[m] == byte) {
+                m++;
+                if (m == strlen(command)) {
+                    break;
+                } 
+            } else {
+                m = 0; 
+            }
+        }
+	}while (timer < timeout && m < strlen(command));
+    if (timer >= timeout) {
+        return AT_ERROR_ECHO;
+    }
+    if (!countOfParameters) {   
+        return AT_OK;
+    }
+        
     va_list tag;
 	va_start (tag, countOfParameters);
 	for(int i = 0; i < countOfParameters; i++) {
 		waitingParam[i] = va_arg (tag, char *);	
+        if (waitingParam[i] == NULL || result == NULL) {
+            com->errorProcessingCallback("AT_Command parameter format error", i);
+            return AT_ERROR_FORMAT; 
+        }
     }
     va_end (tag);
 	memset(&n, 0, sizeof(n));
-    for (int t = 0; t < timeout+1; t += ATCOM_MIN_TIMEOUT) {	
-        if (AT_GetByte(com, (uint8_t*)&byte)) {
+    timer = 0;
+    do {
+        osDelay(ATCOM_MIN_TIMEOUT);        
+        timer += ATCOM_MIN_TIMEOUT;
+        while (AT_GetByte(com, (uint8_t*)&byte)) {
             for (int i = 0; i < countOfParameters; i++) {
                 if (waitingParam[i][n[i]] == byte) {
                     n[i]++;
                     if (n[i] == strlen(waitingParam[i])) {
                         AT_FlushAllCrLf(com, ATCOM_MIN_TIMEOUT); 
-                        return i+1;
-                    } else {
-                       n[i] = 0; 
+                        *result = i;
+                        return AT_OK;
                     }
+                } else {
+                    n[i] = 0; 
                 }
             }
         }
-        osDelay(ATCOM_MIN_TIMEOUT);
-	}
-	return 0;	
+	} while (timer < timeout);
+	return AT_TIMEOUT;	
 }
 //------------------------------------------------------------------------------
    

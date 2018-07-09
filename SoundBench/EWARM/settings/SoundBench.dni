@@ -11,10 +11,10 @@ ByteLimit=50
 [StLinkDriver]
 CStepIntDis=_ 0
 LeaveTargetRunning=_ 0
-stlinkserialNo=A501364C
+stlinkserialNo=9DDC125D
 stlinkfoundProbes=
 [DebugChecksum]
-Checksum=-872100743
+Checksum=1418210413
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -110,8 +110,10 @@ ShowTiming=0
 [Disassemble mode]
 mode=0
 [Breakpoints2]
-Bp0=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\Src\Tasks\GSMTask.c}.70.5" 0 0 1 "" 0 "" 0
-Count=1
+Bp0=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\Src\Tasks\GSMTask.c}.60.5" 0 0 1 "" 0 "" 0
+Bp1=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\Src\AT_com\ATcom.c}.205.2" 0 0 1 "" 0 "" 0
+Bp2=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\Src\Tasks\GSMTask.c}.76.5" 0 0 1 "" 0 "" 0
+Count=3
 [Aliases]
 Count=0
 SuppressDialog=0
