@@ -8,6 +8,13 @@
 #define GSM_BUFSIZE_RX 1024
 #define GSM_BUFSIZE_TX 1024
 
+AT_result_t gsmLinkUp (void);
+AT_result_t gsmIncomingCall (void);
+
+const ATwaitingParameter_t gsmAlwaysWait[WAIT_PARAM_MAX_COUNT] = {
+    {"RDY",        gsmLinkUp},
+    {"RING",      gsmIncomingCall}};
+
 extern UART_HandleTypeDef huart3;
 extern osSemaphoreId gsmTxSemHandle;
 ATcom_t gsm;
@@ -57,6 +64,8 @@ void InitGsmTask(void)
     gsm.txSemaphore = gsmTxSemHandle;
     gsm.rxSize = GSM_BUFSIZE_RX;
     gsm.txSize = GSM_BUFSIZE_TX;
+    gsm.alwaysWait = (ATwaitingParameter_t*) gsmAlwaysWait;
+    gsm.alwaysWaitCount = sizeof(gsmAlwaysWait) / sizeof(gsmAlwaysWait[0]);
     AT_Start(&gsm);
     printf(" ok.\n");
 }
@@ -77,6 +86,17 @@ void gsmTask(void)
 }
 //------------------------------------------------------------------------------
 
+AT_result_t gsmLinkUp (void)
+{
+    return AT_OK;
+}
+//------------------------------------------------------------------------------
+
+AT_result_t gsmIncomingCall(void) 
+{
+    return AT_OK;
+}
+//------------------------------------------------------------------------------
 
 /*
 NORMAL POWER DOWN

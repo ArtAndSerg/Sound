@@ -13,6 +13,7 @@
 
 #define WAIT_PARAM_MAX_COUNT 10
 #define	ATCOM_MIN_TIMEOUT 	 10
+#define	WAIT_PARAM_MAX_LEN   20
 
 typedef enum {
     AT_OK = 0,
@@ -25,6 +26,12 @@ typedef enum {
 
 typedef struct
 {
+    char  *parameter;
+    AT_result_t (*parameterFoundCallback)(void);
+} ATwaitingParameter_t;
+
+typedef struct
+{
 	UART_HandleTypeDef  *huart;
     osSemaphoreId       txSemaphore;
 	uint8_t             *rxBuf;
@@ -33,7 +40,13 @@ typedef struct
     int                 rxLen;
 	uint8_t             *txBuf;
     uint32_t            txSize;
+    
     void (*errorProcessingCallback)(char *errorMessage, int errorCode);
+    ATwaitingParameter_t *waitingParam;
+    uint32_t            alwaysWaitCount;
+    char                *[WAIT_PARAM_MAX_COUNT];
+    
+    
 } ATcom_t;
 
 bool AT_Start(ATcom_t *com);   // must added at start of programm and in HAL_UART_ErrorCallback  !

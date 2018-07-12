@@ -64,7 +64,9 @@ bool AT_GetByte(ATcom_t *com, uint8_t *byte)
         return false;
     }
     if (com->rxPtr != writePtr) {
-        *byte = com->rxBuf[com->rxPtr];
+        if (byte != NULL) {
+            *byte = com->rxBuf[com->rxPtr];
+        }
         com->rxPtr++;
         if (com->rxPtr == com->rxSize) {
             com->rxPtr = 0;
@@ -80,8 +82,11 @@ int  AT_GetData(ATcom_t *com, uint8_t *buf, int bufSize, uint32_t timeout)
     int n = 0;
     
     for (int i = 0; i < timeout+1; i += ATCOM_MIN_TIMEOUT) {
-        while (AT_GetByte(com, &buf[n])) {
+        while (AT_GetByte(com, buf)) {
             n++;
+            if (buf != NULL) {
+                buf++;
+            }
             if (n == bufSize) {
                 return n;
             }
@@ -98,7 +103,7 @@ bool AT_SendString(ATcom_t *com, char *data)
 }
 //---------------------------------------------------------------------------
 
-void AT_FlushAllCrLf(ATcom_t *com, uint32_t timeout)
+void AT_SkipAllCrLf(ATcom_t *com, uint32_t timeout)
 {
     uint32_t pPtr;
     uint8_t byte = 0;
@@ -116,6 +121,17 @@ void AT_FlushAllCrLf(ATcom_t *com, uint32_t timeout)
 }
 //---------------------------------------------------------------------------
 
+void AT_SkipRxData(ATcom_t *com, uint32_t writePtr, uint32_t count)
+{
+    uint8_t byte = 0;
+    for (int i = 0; i < count; i++) {
+        if (!AT_GetByte(com, &byte) || com->rxPtr == writePtr) {
+            break;
+        }
+    }
+}
+//---------------------------------------------------------------------------
+
 uint32_t AT_Gets(ATcom_t *com, char *str, uint32_t strSize, uint32_t timeout) 
 {
     int n = 0;
@@ -124,7 +140,7 @@ uint32_t AT_Gets(ATcom_t *com, char *str, uint32_t strSize, uint32_t timeout)
         while (AT_GetByte(com, (uint8_t*)&str[n])) {
             if (n == strSize - 1 || str[n] == '\n' || str[n] == '\r' || str[n] == '\0') {
                 str[n] = '\0';
-                AT_FlushAllCrLf(com, 0);
+                AT_SkipAllCrLf(com, 0);
                 return n + 1;
             }
             n++;
@@ -135,7 +151,36 @@ uint32_t AT_Gets(ATcom_t *com, char *str, uint32_t strSize, uint32_t timeout)
     return n;
 }
 //---------------------------------------------------------------------------
+
+uint32_t AT_FindString(ATcom_t *com, char *str, uint32_t writePtr)  // return position (0 if string not found)
+{
+  uint32_t readPtr = com->rxPtr, len = strlen(str), i = 0, n = 0;
     
+  while (readPtr != writePtr) {
+      n++;
+      if (com->rxBuf[readPtr] == str[i]) {
+          i++;
+          if (i == len) {
+              return n;
+          }
+      } else {
+          i = 0;
+      }
+      readPtr++;
+      if (readPtr == com->rxSize) {
+          readPtr = 0;
+      }
+  }
+  return 0;
+}
+//---------------------------------------------------------------------------
+
+void AT_AlwaysWaitingStrings(ATcom_t *com) 
+{
+    
+}
+//---------------------------------------------------------------------------
+
 AT_result_t AT_Command(ATcom_t *com, int *result, char *command, uint32_t timeout, uint32_t countOfParameters, ...)
 {	
     char *waitingParam[WAIT_PARAM_MAX_COUNT];
@@ -192,7 +237,7 @@ AT_result_t AT_Command(ATcom_t *com, int *result, char *command, uint32_t timeou
                 if (waitingParam[i][n[i]] == byte) {
                     n[i]++;
                     if (n[i] == strlen(waitingParam[i])) {
-                        AT_FlushAllCrLf(com, ATCOM_MIN_TIMEOUT); 
+                        AT_SkipAllCrLf(com, ATCOM_MIN_TIMEOUT); 
                         *result = i;
                         return AT_OK;
                     }
