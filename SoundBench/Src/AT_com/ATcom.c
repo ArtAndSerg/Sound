@@ -6,6 +6,8 @@
 #include "stm32f1xx_hal.h"
 #include "../src/AT_com/ATcom.h"
 
+static AT_result_t AT_TxProcess(ATcom_t *com); 
+
 bool AT_Start(ATcom_t *com)   // must added at start of programm and in HAL_UART_ErrorCallback  !
 {
     com->rxLen = 0;

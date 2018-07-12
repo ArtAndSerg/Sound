@@ -11,9 +11,7 @@
 #include <stdarg.h>
 #include "cmsis_os.h"
 
-#define WAIT_PARAM_MAX_COUNT 10
-#define	ATCOM_MIN_TIMEOUT 	 10
-#define	WAIT_PARAM_MAX_LEN   20
+#define	AT_MIN_TIMEOUT 	 10
 
 typedef enum {
     AT_OK = 0,
@@ -24,40 +22,44 @@ typedef enum {
     AT_TIMEOUT
 } AT_result_t;
 
-typedef struct
-{
-    char  *parameter;
-    AT_result_t (*parameterFoundCallback)(void);
-} ATwaitingParameter_t;
+typedef enum {
+    AT_NOT_INIT = 0,
+    AT_POWER_OFF,
+    AT_READY, (waiting AT command)
+    AT_SENDING,
+    AT_WAITING_ANSWER,
+    AT_RECEIVING_DATA,
+    AT_ERROR
+} AT_mainState_t;
 
 typedef struct
 {
 	UART_HandleTypeDef  *huart;
-    osSemaphoreId       txSemaphore;
+    osSemaphoreId       busyMutex;
 	uint8_t             *rxBuf;
     uint32_t            rxSize;
     uint32_t            rxPtr;
     int                 rxLen;
-	uint8_t             *txBuf;
-    uint32_t            txSize;
-    
+    uint8_t             *txCommand;
+    uint8_t             *rxCommand;
+    uint32_t            rxCommandSize;
+    uint32_t            rxCommandPtr;
+    uint32_t            rxCommandNum;
     void (*errorProcessingCallback)(char *errorMessage, int errorCode);
-    ATwaitingParameter_t *waitingParam;
-    uint32_t            alwaysWaitCount;
-    char                *[WAIT_PARAM_MAX_COUNT];
-    
-    
+    void (*alwaysWaitingCallback)(void);
 } ATcom_t;
 
+bool AT_Init(ATcom_t *com);   
 bool AT_Start(ATcom_t *com);   // must added at start of programm and in HAL_UART_ErrorCallback  !
+bool AT_Lock(ATcom_t *com, uint32_t timeout);
+bool AT_Unlock(ATcom_t *com);
+void AT_Process(ATcom_t *com);
 int AT_GetData(ATcom_t *com, uint8_t *buf, int bufSize, uint32_t timeout);
 bool AT_GetByte(ATcom_t *com, uint8_t *byte);
 uint32_t AT_GetString(ATcom_t *com, char *str, uint32_t strMaxLen, uint32_t timeout);
 void AT_RxUartDmaISR(ATcom_t *com);  // must added to HAL_UART_RxCpltCallback  and  HAL_UART_RxHalfCpltCallback 
-void AT_txCompleteISR (ATcom_t *com);
-void AT_waitTxComplete(ATcom_t *com);
 bool AT_SendRaw(ATcom_t *com, uint8_t *data, uint16_t len);
 bool AT_SendString(ATcom_t *com, char *data);
-AT_result_t AT_Command(ATcom_t *com, int *result, char *command, uint32_t timeout, uint32_t countOfParameters, ...);
+AT_result_t AT_Command(ATcom_t *com, int *resultNum, char *command, uint32_t timeout, uint32_t countOfAnswersVariants, ...);
 
 #endif
