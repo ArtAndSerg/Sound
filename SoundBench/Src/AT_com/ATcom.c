@@ -6,15 +6,28 @@
 #include "stm32f1xx_hal.h"
 #include "../src/AT_com/ATcom.h"
 
-static AT_result_t AT_TxProcess(ATcom_t *com); 
+static bool AT_GetByte(ATcom_t *com, uint8_t pipeNum, uint8_t *byte);
+static void AT_Error(ATcom_t *com, char *title, int arg, AT_result_t code);
+
+static void AT_Error(ATcom_t *com, char *title, int arg, AT_result_t code)
+{
+    com->errorLoggingCallback(title, arg);
+    com->lastResult = code;
+    com->state = AS_ERROR;  
+}
+//---------------------------------------------------------------------------
 
 bool AT_Start(ATcom_t *com)   // must added at start of programm and in HAL_UART_ErrorCallback  !
 {
-    com->rxLen = 0;
-    com->rxPtr = 0;
+    for (int i = 0; i < AT_PIPES_MAXCOUNT; i++) {
+        com->rxPipe[i].len = 0;
+        com->rxPipe[i].ptr = 0;
+    }
+    com->state = AS_NOT_INIT;
+    com->lastResult = AT_OK;
     HAL_UART_Abort(com->huart);
     if (HAL_UART_Receive_DMA(com->huart, com->rxBuf, com->rxSize) != HAL_OK) {
-        com->errorProcessingCallback("Can't start Rx DMA", 0);
+        AT_Error(com, "Can't start Rx DMA", 0, AT_ERROR_RX);
         return false;
     }
     return true;
@@ -23,79 +36,23 @@ bool AT_Start(ATcom_t *com)   // must added at start of programm and in HAL_UART
 
 void AT_RxUartDmaISR(ATcom_t *com)  // must added to HAL_UART_RxCpltCallback  and  HAL_UART_RxHalfCpltCallback  
 {
-    com->rxLen += com->rxSize / 2; 
+    for (int i = 0; i < AT_PIPES_MAXCOUNT; i++) {
+        com->rxPipe[i].len  += com->rxSize / 2; 
+    }
 }
 //---------------------------------------------------------------------------
 
-void AT_txCompleteISR (ATcom_t *com)
-{
-   portBASE_TYPE xTaskWoken;
-   
-   HAL_UART_Abort(com->huart);
-   xSemaphoreGiveFromISR(com->txSemaphore, &xTaskWoken );
-   if (xTaskWoken == pdTRUE) {
-       taskYIELD();
-   } 
-}
-//---------------------------------------------------------------------------
-
-bool AT_SendRaw(ATcom_t *com, uint8_t *data, uint16_t len)
+bool AT_SendRaw(ATcom_t *com, uint8_t *data, uint32_t len)
 {
     HAL_StatusTypeDef res;
-    if (len <= com->txSize)	{
-		memcpy(com->txBuf, data, len);
-        res = HAL_UART_Transmit_DMA(com->huart, data, len);
-		if (res == HAL_OK) {
-            return true;
-        } else {
-			com->errorProcessingCallback("Can't transmit via DMA", (int)res);
-            return false;
-        }
-	} 
-    com->errorProcessingCallback("Too many data for TX", len);
-    return false;
-}
-//---------------------------------------------------------------------------
-
-bool AT_GetByte(ATcom_t *com, uint8_t *byte)
-{
-    int writePtr = com->rxSize - com->huart->hdmarx->Instance->CNDTR;
-    if (com->rxLen >= com->rxSize){
-        com->errorProcessingCallback("Rx buffer overflow", com->rxLen - com->rxSize);
-        AT_Start(com);
-        return false;
-    }
-    if (com->rxPtr != writePtr) {
-        if (byte != NULL) {
-            *byte = com->rxBuf[com->rxPtr];
-        }
-        com->rxPtr++;
-        if (com->rxPtr == com->rxSize) {
-            com->rxPtr = 0;
-        }
+    com->txBuf = data;
+    res = HAL_UART_Transmit(com->huart, data, len, 1000);
+	if (res == HAL_OK) {
         return true;
-    }
-    return false;
-}
-//---------------------------------------------------------------------------
-
-int  AT_GetData(ATcom_t *com, uint8_t *buf, int bufSize, uint32_t timeout)
-{
-    int n = 0;
-    
-    for (int i = 0; i < timeout+1; i += ATCOM_MIN_TIMEOUT) {
-        while (AT_GetByte(com, buf)) {
-            n++;
-            if (buf != NULL) {
-                buf++;
-            }
-            if (n == bufSize) {
-                return n;
-            }
-        }
-        osDelay(ATCOM_MIN_TIMEOUT);       
-    }
-    return n;
+    } else {
+			AT_Error(com, "Can't transmit", (int)res, AT_ERROR_TX);
+            return false;
+	} 
 }
 //---------------------------------------------------------------------------
 
@@ -105,151 +62,208 @@ bool AT_SendString(ATcom_t *com, char *data)
 }
 //---------------------------------------------------------------------------
 
-void AT_SkipAllCrLf(ATcom_t *com, uint32_t timeout)
+
+static void AT_StartRead(ATcom_t *com, uint8_t pipeNum)
 {
-    uint32_t pPtr;
-    uint8_t byte = 0;
-    
-    for (int i = 0; i < timeout+1; i+= ATCOM_MIN_TIMEOUT) {
-        pPtr = com->rxPtr;
-        while (AT_GetByte(com, &byte)) {
-            if (byte != '\n' && byte != '\r' && byte != '\0') {
-              com->rxPtr = pPtr;
-              return;
-            }
-        }
-        osDelay(ATCOM_MIN_TIMEOUT); 
-    }
+    com->rxPipe[pipeNum].end = com->rxSize - com->huart->hdmarx->Instance->CNDTR;    
+    com->rxPipe[pipeNum].ptr = com->rxPipe[pipeNum].start;
+    com->rxPipe[pipeNum].n = 0;
 }
 //---------------------------------------------------------------------------
 
-void AT_SkipRxData(ATcom_t *com, uint32_t writePtr, uint32_t count)
+static void AT_EndRead(ATcom_t *com, uint8_t pipeNum)
 {
-    uint8_t byte = 0;
-    for (int i = 0; i < count; i++) {
-        if (!AT_GetByte(com, &byte) || com->rxPtr == writePtr) {
+    com->rxPipe[pipeNum].start = com->rxPipe[pipeNum].ptr;   
+    com->rxPipe[pipeNum].len -= com->rxPipe[pipeNum].n;
+    com->rxPipe[pipeNum].n = 0;
+}
+//---------------------------------------------------------------------------
+
+static bool AT_GetByte(ATcom_t *com, uint8_t pipeNum, uint8_t *byte)
+{
+    if (com->rxPipe[pipeNum].ptr != com->rxPipe[pipeNum].end) {
+        if (byte != NULL) {
+            *byte = com->rxBuf[com->rxPipe[pipeNum].ptr];
+        }
+        com->rxPipe[pipeNum].n++;
+        com->rxPipe[pipeNum].ptr++;
+        if (com->rxPipe[pipeNum].ptr == com->rxSize) {
+            com->rxPipe[pipeNum].ptr = 0;
+        }
+        return true;
+    }
+    return false;
+}
+//---------------------------------------------------------------------------
+
+uint32_t  AT_GetData(ATcom_t *com, uint8_t *buf, uint32_t bufSize, uint32_t timeout)
+{
+    uint32_t n = 0;
+    uint32_t timer = HAL_GetTick();
+    
+    while(1)  {
+        AT_StartRead(com, AT_DATA_PIPE);
+        while (AT_GetByte(com, AT_DATA_PIPE, buf)) {
+            n++;
+            if (buf != NULL) {
+                buf++;
+            }
+            if (n == bufSize) {
+                AT_EndRead(com, AT_DATA_PIPE);
+                return n;
+            }
+        }
+        AT_EndRead(com, AT_DATA_PIPE);
+        if (HAL_GetTick() - timer > timeout) {
             break;
         }
-    }
+        osDelay(AT_MIN_TIMEOUT);       
+    } 
+    return n;
 }
 //---------------------------------------------------------------------------
 
 uint32_t AT_Gets(ATcom_t *com, char *str, uint32_t strSize, uint32_t timeout) 
 {
-    int n = 0;
+    uint32_t n = 0;
+    uint32_t timer = HAL_GetTick();
     
-    for (int i = 0; i < timeout+1; i += ATCOM_MIN_TIMEOUT) {
-        while (AT_GetByte(com, (uint8_t*)&str[n])) {
+    while (1) {
+        AT_StartRead(com, AT_DATA_PIPE);
+        while (AT_GetByte(com, AT_DATA_PIPE, (uint8_t*)&str[n])) {
             if (n == strSize - 1 || str[n] == '\n' || str[n] == '\r' || str[n] == '\0') {
-                str[n] = '\0';
-                AT_SkipAllCrLf(com, 0);
-                return n + 1;
+                if (n) {
+                    str[n] = '\0';
+                    AT_EndRead(com, AT_DATA_PIPE);
+                    return n + 1;
+                }
+            } else {
+                n++;
             }
-            n++;
         }
-        osDelay(ATCOM_MIN_TIMEOUT);       
+        AT_EndRead(com, AT_DATA_PIPE);
+        if (HAL_GetTick() - timer > timeout) {
+            break;
+        }
+        osDelay(AT_MIN_TIMEOUT);       
     }
     str[n] = '\0';
     return n;
 }
 //---------------------------------------------------------------------------
 
-uint32_t AT_FindString(ATcom_t *com, char *str, uint32_t writePtr)  // return position (0 if string not found)
+uint32_t AT_GetIncomingCommands(ATcom_t *com, uint32_t timeout, uint32_t countOfAnswersVariants, ...)
 {
-  uint32_t readPtr = com->rxPtr, len = strlen(str), i = 0, n = 0;
-    
-  while (readPtr != writePtr) {
-      n++;
-      if (com->rxBuf[readPtr] == str[i]) {
-          i++;
-          if (i == len) {
-              return n;
-          }
-      } else {
-          i = 0;
-      }
-      readPtr++;
-      if (readPtr == com->rxSize) {
-          readPtr = 0;
-      }
-  }
-  return 0;
-}
-//---------------------------------------------------------------------------
-
-void AT_AlwaysWaitingStrings(ATcom_t *com) 
-{
-    
-}
-//---------------------------------------------------------------------------
-
-AT_result_t AT_Command(ATcom_t *com, int *result, char *command, uint32_t timeout, uint32_t countOfParameters, ...)
-{	
-    char *waitingParam[WAIT_PARAM_MAX_COUNT];
-    uint8_t n[WAIT_PARAM_MAX_COUNT];
-    char  byte;
-    uint32_t timer = 0, commandLen, m = 0;
-    
-    
-    if (countOfParameters > WAIT_PARAM_MAX_COUNT || com == NULL || command == NULL) {
-        com->errorProcessingCallback("AT_Command format error", countOfParameters);
-        return AT_ERROR_FORMAT; 
-    }
-    if (!AT_SendString(com, command)) {
-        return AT_ERROR_SEND;
-    }
-    do{
-        osDelay(ATCOM_MIN_TIMEOUT);        
-        timer += ATCOM_MIN_TIMEOUT;
-        while (AT_GetByte(com, (uint8_t*)&byte)) {
-            if (command[m] == byte) {
-                m++;
-                if (m == strlen(command)) {
-                    break;
-                } 
-            } else {
-                m = 0; 
-            }
-        }
-	}while (timer < timeout && m < strlen(command));
-    if (timer >= timeout) {
-        return AT_ERROR_ECHO;
-    }
-    if (!countOfParameters) {   
-        return AT_OK;
-    }
-        
+    char *str, byte;
+    int n, len;
+    uint32_t timer = HAL_GetTick();
     va_list tag;
-	va_start (tag, countOfParameters);
-	for(int i = 0; i < countOfParameters; i++) {
-		waitingParam[i] = va_arg (tag, char *);	
-        if (waitingParam[i] == NULL || result == NULL) {
-            com->errorProcessingCallback("AT_Command parameter format error", i);
-            return AT_ERROR_FORMAT; 
-        }
+    
+    if (com->rxPipe[AT_INCOMING_PIPE].len >= com->rxSize) {
+        AT_Error(com, "Incoming buffer overflow", com->rxPipe[AT_INCOMING_PIPE].len - com->rxSize, AT_ERROR_INCOMING_OVERFLOW);
+        //AT_Start(com);
+        return 0;    
     }
-    va_end (tag);
-	memset(&n, 0, sizeof(n));
-    timer = 0;
-    do {
-        osDelay(ATCOM_MIN_TIMEOUT);        
-        timer += ATCOM_MIN_TIMEOUT;
-        while (AT_GetByte(com, (uint8_t*)&byte)) {
-            for (int i = 0; i < countOfParameters; i++) {
-                if (waitingParam[i][n[i]] == byte) {
-                    n[i]++;
-                    if (n[i] == strlen(waitingParam[i])) {
-                        AT_SkipAllCrLf(com, ATCOM_MIN_TIMEOUT); 
-                        *result = i;
-                        return AT_OK;
+    
+    if (!countOfAnswersVariants) {   
+        return 0;
+    }
+    while (1) {       
+        va_start (tag, countOfAnswersVariants);
+	    for (int i = 0; i < countOfAnswersVariants; i++) {
+	        str = va_arg (tag, char *);	    
+            len = strlen(str);
+            AT_StartRead(com, AT_INCOMING_PIPE);
+            n = 0;
+            while (AT_GetByte(com, AT_INCOMING_PIPE, (uint8_t*)&byte)) {
+                if (byte == str[n]) {
+                    n++;
+                    if (n == len) {
+                        AT_EndRead(com, AT_INCOMING_PIPE);
+                        com->rxPipe[AT_DATA_PIPE] = com->rxPipe[AT_INCOMING_PIPE];
+                        return i + 1;
                     }
                 } else {
-                    n[i] = 0; 
+                    n = 0;
+                }
+                if (byte == '\n' || byte == '\r' || byte == '\0') {
+                    break;
                 }
             }
         }
-	} while (timer < timeout);
-	return AT_TIMEOUT;	
+        va_end (tag);        
+        if (HAL_GetTick() - timer > timeout) {
+            break;
+        }
+        if (byte == '\n' || byte == '\r' || byte == '\0') {
+  	        AT_EndRead(com, AT_INCOMING_PIPE);
+            continue;
+        }
+        osDelay(AT_MIN_TIMEOUT);       
+    }    
+    return 0;    	
+}
+//---------------------------------------------------------------------------
+
+uint32_t AT_Command(ATcom_t *com, char *command, uint32_t timeout, uint32_t countOfAnswersVariants, ...)
+{	
+    char *str, byte;
+    int n = 0, len = strlen(command);
+    uint32_t timer = HAL_GetTick();
+    va_list tag;
+    
+    if (!countOfAnswersVariants) {   
+        return 0;
+    }
+    AT_EndRead(com, AT_COMMAND_PIPE);
+    AT_StartRead(com, AT_COMMAND_PIPE);
+    AT_SendString(com, command);
+    while (com->useEcho && n != len && HAL_GetTick() - timer < timeout) {
+        while (AT_GetByte(com, AT_COMMAND_PIPE, (uint8_t*)&byte)) {
+            if (byte == command[n]) {
+                n++;
+                if (n == len) {
+                    AT_EndRead(com, AT_COMMAND_PIPE);
+                    AT_StartRead(com, AT_COMMAND_PIPE);
+                    break;
+                }
+            } else {
+                n = 0;
+            }
+        }
+    }
+    if (com->useEcho && n != len) {
+        AT_Error(com, "Echo error", len, AT_ERROR_ECHO);
+        return 0;
+    }               
+    while (1) {       
+        va_start (tag, countOfAnswersVariants);
+	    for (int i = 0; i < countOfAnswersVariants; i++) {
+	        str = va_arg (tag, char *);	    
+            len = strlen(str);
+            AT_StartRead(com, AT_COMMAND_PIPE);
+            n = 0;
+            while (AT_GetByte(com, AT_COMMAND_PIPE, (uint8_t*)&byte)) {
+                if (byte == str[n]) {
+                    n++;
+                    if (n == len) {
+                        AT_EndRead(com, AT_COMMAND_PIPE);
+                        com->rxPipe[AT_DATA_PIPE] = com->rxPipe[AT_COMMAND_PIPE];
+                        return i + 1;
+                    }
+                } else {
+                    n = 0;
+                }
+            }
+        }
+        va_end (tag);        
+        if (HAL_GetTick() - timer > timeout) {
+            AT_Error(com, command, timeout, AT_TIMEOUT);
+            break;
+        }
+        osDelay(AT_MIN_TIMEOUT);       
+    }  
+    return 0;    	    
 }
 //------------------------------------------------------------------------------
    

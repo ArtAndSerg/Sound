@@ -55,6 +55,7 @@
 /* USER CODE BEGIN Includes */
 
 #include "my/myTypes.h"
+#include "my/myTasks.h"
       
 /* USER CODE END Includes */
 
@@ -67,9 +68,8 @@ RTC_HandleTypeDef hrtc;
 SPI_HandleTypeDef hspi1;
 SPI_HandleTypeDef hspi2;
 
-UART_HandleTypeDef huart3;
-DMA_HandleTypeDef hdma_usart3_rx;
-DMA_HandleTypeDef hdma_usart3_tx;
+UART_HandleTypeDef huart1;
+DMA_HandleTypeDef hdma_usart1_rx;
 
 osThreadId mainTaskHandle;
 osThreadId GSMTaskHandle;
@@ -96,8 +96,8 @@ static void MX_DMA_Init(void);
 static void MX_RTC_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_SPI2_Init(void);
-static void MX_USART3_UART_Init(void);
 static void MX_ADC1_Init(void);
+static void MX_USART1_UART_Init(void);
 void StartMainTask(void const * argument);
 void StartGSMTask(void const * argument);
 void StartKeysTask(void const * argument);
@@ -109,6 +109,8 @@ void StartLcdTask(void const * argument);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
+
+#define __DEBUG 1
 
 /* USER CODE END 0 */
 
@@ -139,14 +141,15 @@ int main(void)
 
   /* USER CODE END SysInit */
 
+  
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_RTC_Init();
   MX_SPI1_Init();
   MX_SPI2_Init();
-  MX_USART3_UART_Init();
   MX_ADC1_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -191,7 +194,7 @@ int main(void)
 
   /* Create the thread(s) */
   /* definition and creation of mainTask */
-  osThreadDef(mainTask, StartMainTask, osPriorityAboveNormal, 0, 512);
+  osThreadDef(mainTask, StartMainTask, osPriorityAboveNormal, 0, 768);
   mainTaskHandle = osThreadCreate(osThread(mainTask), NULL);
 
   /* definition and creation of GSMTask */
@@ -318,7 +321,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 3;
+  hadc1.Init.NbrOfConversion = 6;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
@@ -347,6 +350,34 @@ static void MX_ADC1_Init(void)
     */
   sConfig.Channel = ADC_CHANNEL_TEMPSENSOR;
   sConfig.Rank = ADC_REGULAR_RANK_3;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+    /**Configure Regular Channel 
+    */
+  sConfig.Channel = ADC_CHANNEL_1;
+  sConfig.Rank = ADC_REGULAR_RANK_4;
+  sConfig.SamplingTime = ADC_SAMPLETIME_71CYCLES_5;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+    /**Configure Regular Channel 
+    */
+  sConfig.Channel = ADC_CHANNEL_2;
+  sConfig.Rank = ADC_REGULAR_RANK_5;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+    /**Configure Regular Channel 
+    */
+  sConfig.Channel = ADC_CHANNEL_3;
+  sConfig.Rank = ADC_REGULAR_RANK_6;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
@@ -418,19 +449,19 @@ static void MX_SPI2_Init(void)
 
 }
 
-/* USART3 init function */
-static void MX_USART3_UART_Init(void)
+/* USART1 init function */
+static void MX_USART1_UART_Init(void)
 {
 
-  huart3.Instance = USART3;
-  huart3.Init.BaudRate = 115200;
-  huart3.Init.WordLength = UART_WORDLENGTH_8B;
-  huart3.Init.StopBits = UART_STOPBITS_1;
-  huart3.Init.Parity = UART_PARITY_NONE;
-  huart3.Init.Mode = UART_MODE_TX_RX;
-  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart3) != HAL_OK)
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
@@ -449,12 +480,9 @@ static void MX_DMA_Init(void)
   /* DMA1_Channel1_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 7, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
-  /* DMA1_Channel2_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel2_IRQn, 7, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel2_IRQn);
-  /* DMA1_Channel3_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, 7, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel3_IRQn);
+  /* DMA1_Channel5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 7, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
 
 }
 
@@ -480,14 +508,14 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(VS_RESET_GPIO_Port, VS_RESET_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, VS_DCS_Pin|VS_CS_Pin|SD_SS_Pin|CS_Pin 
-                          |SCK_Pin|MOSI_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, VS_DCS_Pin|VS_CS_Pin|VS_RESET_Pin|SD_SS_Pin 
+                          |CS_Pin|SCK_Pin|MOSI_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(POWER_KEY_GPIO_Port, POWER_KEY_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(MUTE_GPIO_Port, MUTE_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin : LED_Pin */
   GPIO_InitStruct.Pin = LED_Pin;
@@ -495,22 +523,16 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : VS_RESET_Pin POWER_KEY_Pin */
-  GPIO_InitStruct.Pin = VS_RESET_Pin|POWER_KEY_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
   /*Configure GPIO pin : VS_DREQ_Pin */
   GPIO_InitStruct.Pin = VS_DREQ_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(VS_DREQ_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : VS_DCS_Pin VS_CS_Pin SD_SS_Pin CS_Pin 
-                           SCK_Pin MOSI_Pin */
-  GPIO_InitStruct.Pin = VS_DCS_Pin|VS_CS_Pin|SD_SS_Pin|CS_Pin 
-                          |SCK_Pin|MOSI_Pin;
+  /*Configure GPIO pins : VS_DCS_Pin VS_CS_Pin VS_RESET_Pin SD_SS_Pin 
+                           CS_Pin SCK_Pin MOSI_Pin MUTE_Pin */
+  GPIO_InitStruct.Pin = VS_DCS_Pin|VS_CS_Pin|VS_RESET_Pin|SD_SS_Pin 
+                          |CS_Pin|SCK_Pin|MOSI_Pin|MUTE_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
@@ -520,6 +542,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(JUMPER_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : POWER_KEY_Pin */
+  GPIO_InitStruct.Pin = POWER_KEY_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(POWER_KEY_GPIO_Port, &GPIO_InitStruct);
 
 }
 
@@ -531,16 +559,20 @@ static void MX_GPIO_Init(void)
 void StartMainTask(void const * argument)
 {
   /* init code for FATFS */
-  //MX_FATFS_Init();
+  MX_FATFS_Init();
 
   /* USER CODE BEGIN 5 */
   
-  //InitMainTask();
+#ifndef __DEBUG
+  InitMainTask();
+#endif
   
   /* Infinite loop */
   for(;;)
   {
-    //MainTask();
+#ifndef __DEBUG
+    MainTask();
+#endif
     osDelay(1);
   }
   /* USER CODE END 5 */ 
@@ -550,11 +582,15 @@ void StartMainTask(void const * argument)
 void StartGSMTask(void const * argument)
 {
   /* USER CODE BEGIN StartGSMTask */
-  InitGsmTask();
+#ifdef __DEBUG
+    InitGsmTask();
+#endif    
     /* Infinite loop */
   for(;;)
   {
-    gsmTask();  
+#ifdef __DEBUG    
+    gsmTask(); 
+#endif    
     osDelay(1);
   }
   /* USER CODE END StartGSMTask */
@@ -564,11 +600,15 @@ void StartGSMTask(void const * argument)
 void StartKeysTask(void const * argument)
 {
   /* USER CODE BEGIN StartKeysTask */
-  //InitKeysTask();
+#ifndef __DEBUG
+    InitKeysTask();
+#endif    
     /* Infinite loop */
   for(;;)
   {
-   // KeysTask();
+#ifndef __DEBUG      
+    KeysTask();
+#endif    
     osDelay(1);
   }
   /* USER CODE END StartKeysTask */
@@ -578,11 +618,15 @@ void StartKeysTask(void const * argument)
 void StartLcdTask(void const * argument)
 {
   /* USER CODE BEGIN StartLcdTask */
-  //InitLcdTask();  
+#ifndef __DEBUG  
+    InitLcdTask();  
+ #endif    
   /* Infinite loop */
   for(;;)
   {
-   // LcdTask();  
+#ifndef __DEBUG      
+    LcdTask(); 
+  #endif   
     osDelay(1);
   }
   /* USER CODE END StartLcdTask */

@@ -17,8 +17,11 @@ extern osMessageQId KeysQueueHandle;
 #define ITEMS_MAXCOUNT 100
 #define BUF_SIZE    (2048)//(50 * VS1053_MAX_TRANSFER_SIZE)
 
+extern UART_HandleTypeDef huart1;
+
 char *currPath = NULL, *currFileName = NULL;
 int  currItem,  itemsCount;
+GPIO_PinState muteState = GPIO_PIN_SET;
 FILINFO currFile;
 
 void dirToDisplay(void);
@@ -27,9 +30,40 @@ void stopFile(void);
 void showError(char *text, int errCode);
 int InitFAT(void);
 void scrollCurrentItem(int pos);
+static char sstr[20];
 
 void InitMainTask(void)
 {
+    /*
+    HAL_UART_Transmit(&huart1, "AT\r\n", 4, 1000);
+    osDelay(1000);
+    HAL_UART_Transmit(&huart1, "AT\r\n", 4, 1000);
+    osDelay(1000);
+    HAL_UART_Transmit(&huart1, "AT\r\n", 4, 1000);
+    osDelay(1000);
+    HAL_UART_Transmit(&huart1, "AT+IPR=115200\r\n", strlen("AT+IPR=115200\r\n"), 10000);
+    osDelay(1000);
+    HAL_UART_Transmit(&huart1, "AT&W\r\n", 6, 1000);
+    */
+   
+    //while (strstr(sstr, "\r\nRDY\r\n\r\n") == NULL) {
+    while (strstr(sstr, "NORMAL POWER") == NULL) {
+        HAL_GPIO_WritePin(POWER_KEY_GPIO_Port, POWER_KEY_Pin, GPIO_PIN_RESET);
+        osDelay(500);
+        lcdPrintf(1, 10, clWhite, clBlack, "Запуск системы...");       
+        lcdUpdate();
+        osDelay(500);
+        lcdPrintf(1, 30, clWhite, clBlack, "  Пожалуйста");
+        lcdPrintf(1, 40, clWhite, clBlack, "  подождите.");
+        lcdUpdate();
+        osDelay(1000);
+        HAL_GPIO_WritePin(POWER_KEY_GPIO_Port, POWER_KEY_Pin, GPIO_PIN_SET);
+        HAL_UART_Receive(&huart1, sstr, 19, 2000);
+        osDelay(1000);
+        lcdClearAll();
+        lcdUpdate();
+    }
+    
     memset((void*)&currFile, 0, sizeof(FILINFO));        
     currItem = 0;
     itemsCount = 0;
@@ -43,6 +77,8 @@ void InitMainTask(void)
     } else {
          _Error_Handler(__FILE__, __LINE__);
     }
+    
+    
 }
 //------------------------------------------------------------------------------
 
@@ -112,10 +148,15 @@ void MainTask(void)
 
 int InitFAT(void) 
 {
+    static int tryCount = 0;
     FRESULT res;
+    if (tryCount > 10) {
+        HAL_NVIC_SystemReset();
+    }
     res = disk_initialize(USERFatFS.drv);
     if (res) {
         showError("карты памяти", (int) res); 
+        tryCount++;
         return 0;
     }
     currFile.lfsize = _MAX_LFN + 1;
@@ -124,6 +165,7 @@ int InitFAT(void)
         return 1;
     } else {
         showError("файловой системы", res); 
+        tryCount++;
     }
     return 0;
 }
@@ -273,6 +315,9 @@ int executeFile(char *fileName)
               res = f_read(&USERFile, buf, BUF_SIZE, &n);
             } 
         }
+        if (num > 3) {
+            HAL_GPIO_WritePin(MUTE_GPIO_Port, MUTE_Pin, muteState);
+        }
         if ((num & 0x03) == 0 || key) {
             if ((num & 0x07) == 0) {
                 pos++;    
@@ -324,11 +369,12 @@ int executeFile(char *fileName)
          if (VS1053_addData(buf, n) == VS1053_ERROR) {
              showError("воспроизведения", 0);
              break;
-         }        
+         } 
+         
     } while(n);
     myFree((void**)&buf);
     f_close(&USERFile);
-    
+    HAL_GPIO_WritePin(MUTE_GPIO_Port, MUTE_Pin, GPIO_PIN_SET);
     return playNext;
 }
 //------------------------------------------------------------------------------

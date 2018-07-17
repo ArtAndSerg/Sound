@@ -26,7 +26,7 @@
     <name>SoundBench</name>				
     <device>STM32F103C8Tx</device>		 
     <heapSize>0x10</heapSize>
-    <stackSize>0x100</stackSize>
+    <stackSize>0x300</stackSize>
     
     	<cpuclock>72</cpuclock>
     	<board>custom</board>

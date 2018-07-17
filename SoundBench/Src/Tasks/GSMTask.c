@@ -11,11 +11,7 @@
 AT_result_t gsmLinkUp (void);
 AT_result_t gsmIncomingCall (void);
 
-const ATwaitingParameter_t gsmAlwaysWait[WAIT_PARAM_MAX_COUNT] = {
-    {"RDY",        gsmLinkUp},
-    {"RING",      gsmIncomingCall}};
-
-extern UART_HandleTypeDef huart3;
+extern UART_HandleTypeDef huart1;
 extern osSemaphoreId gsmTxSemHandle;
 ATcom_t gsm;
 
@@ -50,22 +46,14 @@ void InitGsmTask(void)
     osDelay(2000);
     HAL_GPIO_WritePin(GPIOA, VS_RESET_Pin|POWER_KEY_Pin, GPIO_PIN_SET);
     
-    gsm.errorProcessingCallback = gsmErrorProcessing;   
-    gsm.huart = &huart3;
-    if (!myMalloc((void*)&gsm.rxBuf,  GSM_BUFSIZE_RX, 1000)) {
+    gsm.errorLoggingCallback = gsmErrorProcessing;   
+    gsm.huart = &huart1;
+    if (!myCalloc((void*)&gsm.rxBuf,  GSM_BUFSIZE_RX, 1000)) {
         gsmErrorProcessing("Allocate RAM", GSM_BUFSIZE_RX);
         return;
     }
-    if (!myMalloc((void*)&gsm.txBuf,  GSM_BUFSIZE_TX, 1000)) {
-        gsmErrorProcessing("Allocate RAM", GSM_BUFSIZE_RX);
-        myFree((void*)&gsm.rxBuf);
-        return;
-    }
-    gsm.txSemaphore = gsmTxSemHandle;
+    //gsm.txSemaphore = gsmTxSemHandle;
     gsm.rxSize = GSM_BUFSIZE_RX;
-    gsm.txSize = GSM_BUFSIZE_TX;
-    gsm.alwaysWait = (ATwaitingParameter_t*) gsmAlwaysWait;
-    gsm.alwaysWaitCount = sizeof(gsmAlwaysWait) / sizeof(gsmAlwaysWait[0]);
     AT_Start(&gsm);
     printf(" ok.\n");
 }
@@ -73,16 +61,32 @@ void InitGsmTask(void)
 
 void gsmTask(void)
 {
-    uint32_t answerNum = -1;
-    static char str[100];
+    int answerNum;
+    char str[10];
+    memset(str, 0, 10);
     AT_result_t res;
     
-    res = AT_Command(&gsm, &answerNum, "AT+COPS?\r", 1000, 2, "+COPS:", "+CME ERROR:");
-    res = AT_Gets(&gsm, str, sizeof(str), 1000);
+    answerNum = AT_GetIncomingCommands(&gsm, 1000, 6, "RDY\r", 
+                                                      "+CPIN: ",  
+                                                      "Call Ready\r", 
+                                                      "SMS Ready\r", 
+                                                      "RING\r", 
+                                                      "NO CARRIER\r");
+    if (answerNum == 2) {
+        AT_Gets(&gsm, str, 10, 100);
+    }
+    if (answerNum == 5) {
+        AT_Command(&com, "ATH\r", 1, "" 
+    }
+    printf("ANSWER = %d   \"%s\"\n", answerNum, str);
+    //printf("%s\n", gsm.rxBuf);
+    //osDelay(1000);
+    //res = AT_Command(&gsm, &answerNum, "AT+COPS?\r", 1000, 2, "+COPS:", "+CME ERROR:");
+    //res = AT_Gets(&gsm, str, sizeof(str), 1000);
     //      printf("\nOperator = \"%s\" (answer %d)", str, answerNum);
     //}
     
-    osDelay(2000);
+   // osDelay(1000);
 }
 //------------------------------------------------------------------------------
 
