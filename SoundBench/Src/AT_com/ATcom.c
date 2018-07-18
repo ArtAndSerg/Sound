@@ -152,56 +152,56 @@ uint32_t AT_Gets(ATcom_t *com, char *str, uint32_t strSize, uint32_t timeout)
 }
 //---------------------------------------------------------------------------
 
-uint32_t AT_GetIncomingCommands(ATcom_t *com, uint32_t timeout, uint32_t countOfAnswersVariants, ...)
+bool AT_LookupNextCommand(ATcom_t *com, uint8_t pipeNum)
 {
-    char *str, byte;
-    int n, len;
-    uint32_t timer = HAL_GetTick();
-    va_list tag;
+    char byte;
+    while (AT_GetByte(com, AT_INCOMING_PIPE, (uint8_t*)&byte)) {
     
+}
+//---------------------------------------------------------------------------
+
+bool AT_IncomingResetLookup(ATcom_t *com)
+{   
+    /*
     if (com->rxPipe[AT_INCOMING_PIPE].len >= com->rxSize) {
         AT_Error(com, "Incoming buffer overflow", com->rxPipe[AT_INCOMING_PIPE].len - com->rxSize, AT_ERROR_INCOMING_OVERFLOW);
         //AT_Start(com);
-        return 0;    
+        return false;    
     }
-    
-    if (!countOfAnswersVariants) {   
-        return 0;
-    }
-    while (1) {       
-        va_start (tag, countOfAnswersVariants);
-	    for (int i = 0; i < countOfAnswersVariants; i++) {
-	        str = va_arg (tag, char *);	    
-            len = strlen(str);
-            AT_StartRead(com, AT_INCOMING_PIPE);
-            n = 0;
-            while (AT_GetByte(com, AT_INCOMING_PIPE, (uint8_t*)&byte)) {
-                if (byte == str[n]) {
-                    n++;
-                    if (n == len) {
-                        AT_EndRead(com, AT_INCOMING_PIPE);
-                        com->rxPipe[AT_DATA_PIPE] = com->rxPipe[AT_INCOMING_PIPE];
-                        return i + 1;
-                    }
-                } else {
-                    n = 0;
-                }
-                if (byte == '\n' || byte == '\r' || byte == '\0') {
-                    break;
-                }
-            }
+    */
+    com->rxPipe[AT_INCOMING_PIPE].ptr = com->rxPipe[AT_INCOMING_PIPE].end;
+    while(com->rxPipe[AT_INCOMING_PIPE].ptr != com->rxPipe[AT_INCOMING_PIPE].start) {        
+        if (com->rxPipe[AT_INCOMING_PIPE].ptr == 0) {
+            com->rxPipe[AT_INCOMING_PIPE].ptr = com->rxSize;
         }
-        va_end (tag);        
-        if (HAL_GetTick() - timer > timeout) {
+        com->rxPipe[AT_INCOMING_PIPE].ptr--;
+        com->rxPipe[AT_INCOMING_PIPE].n--;
+        if (com->rxBuf[com->rxPipe[AT_INCOMING_PIPE].ptr] == '\n' || com->rxBuf[com->rxPipe[AT_INCOMING_PIPE].ptr] == '\r' ||  com->rxBuf[com->rxPipe[AT_INCOMING_PIPE].ptr] == '\0') {
+            AT_GetByte(com, AT_INCOMING_PIPE, NULL);
+            AT_EndRead(com, AT_INCOMING_PIPE);        
             break;
-        }
-        if (byte == '\n' || byte == '\r' || byte == '\0') {
-  	        AT_EndRead(com, AT_INCOMING_PIPE);
-            continue;
-        }
-        osDelay(AT_MIN_TIMEOUT);       
-    }    
-    return 0;    	
+        }            
+    }
+}
+//---------------------------------------------------------------------------
+
+bool AT_LookupStr(ATcom_t *com, char *str)
+{
+    char byte;
+    int n = 0, len = strlen(str);
+    
+    AT_StartRead(com, AT_INCOMING_PIPE);
+    while (AT_GetByte(com, AT_INCOMING_PIPE, (uint8_t*)&byte)) {
+        if (byte == str[n]) {
+            n++;
+            if (n == len) {
+                com->rxPipe[AT_DATA_PIPE] = com->rxPipe[AT_INCOMING_PIPE];
+                return true;
+            } else {
+                n = 0;
+            }
+    }
+    return false;
 }
 //---------------------------------------------------------------------------
 

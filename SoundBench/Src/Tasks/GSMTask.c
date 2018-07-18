@@ -66,12 +66,28 @@ void gsmTask(void)
     memset(str, 0, 10);
     AT_result_t res;
     
-    answerNum = AT_GetIncomingCommands(&gsm, 1000, 6, "RDY\r", 
-                                                      "+CPIN: ",  
-                                                      "Call Ready\r", 
-                                                      "SMS Ready\r", 
-                                                      "RING\r", 
-                                                      "NO CARRIER\r");
+    // "RDY\r", "+CPIN: ",    "Call Ready\r",   "SMS Ready\r",   "RING\r",   "NO CARRIER\r");
+    printf(".");
+    
+    
+    if (AT_LookupStr(&gsm, "+CPIN: ")) {
+        AT_Gets(&gsm, str, 10, 100);
+        printf("\n>> +CPIN: \"%s\"\n", str);
+    }
+    if (AT_LookupStr(&gsm, "RING\r")) {
+        printf("\n>> Ring!\n");
+    }
+    if (AT_LookupStr(&gsm, "RDY\r")) {
+        printf("\n>> Reary.\n");
+    }
+    AT_IncomingResetLookup(&gsm);
+    
+    osDelay(1000);
+    
+    
+    
+    /*
+    
     if (answerNum == 2) {
         AT_Gets(&gsm, str, 10, 100);
     }
@@ -85,8 +101,8 @@ void gsmTask(void)
     //res = AT_Gets(&gsm, str, sizeof(str), 1000);
     //      printf("\nOperator = \"%s\" (answer %d)", str, answerNum);
     //}
-    
-   // osDelay(1000);
+    */
+   // 
 }
 //------------------------------------------------------------------------------
 

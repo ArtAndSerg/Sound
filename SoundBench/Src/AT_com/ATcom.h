@@ -64,6 +64,7 @@ typedef struct
     bool                useEcho;  
     void                (*errorLoggingCallback)(char *errorMessage, int errorArgument);
     void                (*errorProcessingCallback)(void);
+    void                (*incomingProcessing(void)); 
 } ATcom_t;
 
 bool        AT_Init(ATcom_t *com);   
@@ -76,7 +77,8 @@ void        AT_RxUartDmaISR(ATcom_t *com);  // must added to HAL_UART_RxCpltCall
 bool        AT_SendRaw(ATcom_t *com, uint8_t *data, uint32_t len);
 bool        AT_SendString(ATcom_t *com, char *data);
 uint32_t    AT_Command(ATcom_t *com, char *command, uint32_t timeout, uint32_t countOfAnswersVariants, ...);
-uint32_t    AT_GetIncomingCommands(ATcom_t *com, uint32_t timeout, uint32_t countOfAnswersVariants, ...);
+bool        AT_LookupNextCommand(ATcom_t *com, uint8_t pipeNum);
+bool        AT_LookupStr(ATcom_t *com,  uint8_t pipeNum, char *str);
 uint32_t  AT_GetData(ATcom_t *com, uint8_t *buf, uint32_t bufSize, uint32_t timeout);
 #endif
 
