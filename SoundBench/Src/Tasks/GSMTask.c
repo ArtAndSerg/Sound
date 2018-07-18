@@ -39,6 +39,21 @@ void gsmErrorProcessing(char *errorMessage, int errorCode)
 }
 //------------------------------------------------------------------------------
 
+bool gsmIncomingCommandsProcessing(void)
+{
+    bool res = false;
+    if (AT_LookupStr(&gsm, "RING\r")) {
+        printf("\n>> Ring!\n");
+        res = true;
+    }
+    if (AT_LookupStr(&gsm, "RDY\r")) {
+        printf("\n>> Reary.\n");
+        res = true;
+    }
+    return res;
+}
+//------------------------------------------------------------------------------
+
 void InitGsmTask(void)
 {
     printf("\n\nGSM init... ");
@@ -46,7 +61,8 @@ void InitGsmTask(void)
     osDelay(2000);
     HAL_GPIO_WritePin(GPIOA, VS_RESET_Pin|POWER_KEY_Pin, GPIO_PIN_SET);
     
-    gsm.errorLoggingCallback = gsmErrorProcessing;   
+    gsm.errorLoggingCallback = gsmErrorProcessing; 
+    gsm.incomingCommandsProcessing = gsmIncomingCommandsProcessing;
     gsm.huart = &huart1;
     if (!myCalloc((void*)&gsm.rxBuf,  GSM_BUFSIZE_RX, 1000)) {
         gsmErrorProcessing("Allocate RAM", GSM_BUFSIZE_RX);
@@ -62,27 +78,27 @@ void InitGsmTask(void)
 void gsmTask(void)
 {
     int answerNum;
-    char str[10];
+    static char str[100];
     memset(str, 0, 10);
     AT_result_t res;
     
     // "RDY\r", "+CPIN: ",    "Call Ready\r",   "SMS Ready\r",   "RING\r",   "NO CARRIER\r");
-    printf(".");
+    if (AT_Command(&gsm, "AT+COPS?", 1000, 2, "+COPS:", "ERROR") == 1)
+    {
+        AT_Gets(&gsm, str, 10);
+        printf("Operator \"%s\"\n", str);
+    }
+    
+    for (int i = 0; i < 10; i++) {
+        while (AT_LookupNextCommand(&gsm, 100)) {
+            AT_ClearCurrentCommand(&gsm);
+        }
+    }
     
     
-    if (AT_LookupStr(&gsm, "+CPIN: ")) {
-        AT_Gets(&gsm, str, 10, 100);
-        printf("\n>> +CPIN: \"%s\"\n", str);
-    }
-    if (AT_LookupStr(&gsm, "RING\r")) {
-        printf("\n>> Ring!\n");
-    }
-    if (AT_LookupStr(&gsm, "RDY\r")) {
-        printf("\n>> Reary.\n");
-    }
-    AT_IncomingResetLookup(&gsm);
     
-    osDelay(1000);
+    
+   // osDelay(1000);
     
     
     
@@ -119,6 +135,11 @@ AT_result_t gsmIncomingCall(void)
 //------------------------------------------------------------------------------
 
 /*
+
+41 54 2B 43 4F 50 53 3F 0D 0D 0A 2B 43 4F 50 53 3A 20 30 2C 30 2C 22 42 65 65 20 4C 69 6E 65 20 47 53 4D 22 0D 0A 0D 0A 4F 4B 0D 0A                                                                                                                                                                                                                                                                                                                                                             
+AT+COPS?...+COPS: 0,0,"Bee Line GSM"....OK..
+
+
 NORMAL POWER DOWN
 
 RDY

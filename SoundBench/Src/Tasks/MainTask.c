@@ -287,10 +287,12 @@ int executeFile(char *fileName)
     char key;
     int playNext = 0;  
     int witdh;
-    static int volume = 50;
+    static int volume[2] = {30, 70};
+    GPIO_PinState p_muteState = muteState;
+    
     
     memset(str, 0, sizeof(str));
-    if (VS1053_play() != VS1053_OK || VS1053_setVolume(volume) != VS1053_OK) {
+    if (VS1053_play() != VS1053_OK || VS1053_setVolume(volume[(int)muteState]) != VS1053_OK) {
         showError("декодера", 0);
         return 0;
     }
@@ -305,6 +307,10 @@ int executeFile(char *fileName)
     } 
     witdh = lcdPrintf(0, 0, clWhite, clBlack, currFileName);            
     do {
+        if (muteState != p_muteState) {
+            VS1053_setVolume(volume[(int)muteState]);
+        }
+        p_muteState = muteState;
         res = f_read(&USERFile, buf, BUF_SIZE, &n);
         while (res != FR_OK) {
             showError("чтения файла", (int)res); 
@@ -327,9 +333,9 @@ int executeFile(char *fileName)
             lcdPrintf(witdh + 32 - pos % witdh, 10, clWhite, clBlack, currFileName);            
             lcdRectangle(1, 30, 125, 38,  clWhite, clNone, 1);
             lcdRectangle(3, 32, 12300 / ((USERFile.fsize * 100) / USERFile.fptr), 36,  clWhite, clWhite, 0);
-            sprintf(str, "%d%%", volume);
+            sprintf(str, "%d%%", volume[(int)muteState]);
             lcdPrintf(10, 52, clWhite, clBlack, str);            
-            for(int i = 0; i < volume/4 + 4; i++) {
+            for(int i = 0; i < volume[(int)muteState]/4 + 4; i++) {
                 for(int j = 0; j < i/2; j++) {
                    lcdPixel(50 + 2*i,  56-j, clWhite);
                 }
@@ -345,16 +351,16 @@ int executeFile(char *fileName)
         if (xQueueReceive(KeysQueueHandle, &key, 10) == pdPASS) {
             switch(key) {
               case '+': 
-                 if (volume > 5) {
-                     volume -= 5;
+                 if (volume[(int)muteState] > 5) {
+                     volume[(int)muteState] -= 5;
                  }
-                 VS1053_setVolume(volume);
+                 VS1053_setVolume(volume[(int)muteState]);
                  break;
               case '-': 
-                  if (volume < 100) {
-                      volume += 5;
+                  if (volume[(int)muteState] < 100) {
+                      volume[(int)muteState] += 5;
                   }
-                  VS1053_setVolume(volume);
+                  VS1053_setVolume(volume[(int)muteState]);
                   break;  
                case '<':
                   n = 0;
@@ -370,7 +376,6 @@ int executeFile(char *fileName)
              showError("воспроизведения", 0);
              break;
          } 
-         
     } while(n);
     myFree((void**)&buf);
     f_close(&USERFile);
