@@ -64,7 +64,7 @@ static void AT_StartRead(ATcom_t *com)
 {
     com->cmdEnd = com->rxSize - com->huart->hdmarx->Instance->CNDTR;    
     com->cmdPtr = com->cmdStart;
-    com->cmdLen = 0;
+    com->cmdLen = 0; 
 }
 //---------------------------------------------------------------------------
 
@@ -135,22 +135,34 @@ void AT_ClearCurrentCommand(ATcom_t *com)
 
 bool AT_LookupNextCommand(ATcom_t *com, uint32_t timeout)
 {
-    char byte;
     uint32_t timer = HAL_GetTick();
-
-    do {
+    char byte = 0;
+    
+    while (1) {
         AT_StartRead(com);
         if (AT_Gets(com, NULL, com->rxSize)) {
+            
+            AT_StartRead(com);
+            printf("\t\t\t");
+            do {
+                AT_GetByte(com, (uint8_t*)&byte);
+                printf("%c", byte);
+            } while (byte != '\r');
+            printf("\n");
+            
             AT_StartRead(com);
             if (com->incomingCommandsProcessing()) {
                 AT_ClearCurrentCommand(com);
                 continue;
             }
-            AT_StartRead(com);
+            AT_StartRead(com);            
             return true;
         }
+        if (HAL_GetTick() - timer > timeout) {
+            break;
+        }
         osDelay(AT_MIN_TIMEOUT);
-    } while (HAL_GetTick() - timer < timeout); 
+    }  
     return false;
 }
 //---------------------------------------------------------------------------
@@ -184,16 +196,11 @@ uint32_t AT_Command(ATcom_t *com, char *command, uint32_t timeout, uint32_t coun
     int n = 0, len = strlen(command);
     uint32_t timer = HAL_GetTick(), fulRxBufferTimeout = 1 + (1000 * com->rxSize) / (com->huart->Init.BaudRate / 10);
     va_list tag;
-    
-    
-    
+        
     while (AT_LookupNextCommand(com, 0)) {
         AT_ClearCurrentCommand(com);
     }
-    
-    if (!countOfAnswersVariants) {   
-        return 0;
-    }
+        
     AT_StartRead(com);
     AT_SendString(com, command);
     if (com->useEcho) {
@@ -204,13 +211,6 @@ uint32_t AT_Command(ATcom_t *com, char *command, uint32_t timeout, uint32_t coun
                     break;
                 }
                 AT_ClearCurrentCommand(com);
-            } else {
-                if (timeout > fulRxBufferTimeout) {
-                    timeout -= fulRxBufferTimeout;
-                } else {
-                    AT_Error(com, command, len, AT_TIMEOUT);
-                    return 0;
-                }
             }
         }
         if (n == 2) {
@@ -220,6 +220,7 @@ uint32_t AT_Command(ATcom_t *com, char *command, uint32_t timeout, uint32_t coun
         }
         AT_ClearCurrentCommand(com);
     }
+    
     while (HAL_GetTick() - timer <= timeout) {
         if (AT_LookupNextCommand(com, timeout)) {
             va_start (tag, countOfAnswersVariants);

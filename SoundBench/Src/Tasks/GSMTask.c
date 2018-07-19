@@ -42,14 +42,30 @@ void gsmErrorProcessing(char *errorMessage, int errorCode)
 bool gsmIncomingCommandsProcessing(void)
 {
     bool res = false;
+    static char str[100];
+    
     if (AT_LookupStr(&gsm, "RING\r")) {
         printf("\n>> Ring!\n");
+        AT_SendString(&gsm, "ATH\r");
         res = true;
     }
     if (AT_LookupStr(&gsm, "RDY\r")) {
-        printf("\n>> Reary.\n");
+        printf("\n>> Ready.\n");
         res = true;
     }
+    if (AT_LookupStr(&gsm, "+CLIP: ")) {
+        AT_Gets(&gsm, str, 100);
+        printf("\n>> Calling: %s\n", str);
+        res = true;
+    }
+    
+    if (AT_LookupStr(&gsm, "NORMAL POWER DOWN\r")) {
+        printf("\n>> Power down.\n");
+        osDelay(1000);
+        HAL_NVIC_SystemReset();
+        res = true;
+    }
+    
     return res;
 }
 //------------------------------------------------------------------------------
@@ -60,7 +76,7 @@ void InitGsmTask(void)
     HAL_GPIO_WritePin(GPIOA, VS_RESET_Pin|POWER_KEY_Pin, GPIO_PIN_RESET);
     osDelay(2000);
     HAL_GPIO_WritePin(GPIOA, VS_RESET_Pin|POWER_KEY_Pin, GPIO_PIN_SET);
-    
+    osDelay(1000);
     gsm.errorLoggingCallback = gsmErrorProcessing; 
     gsm.incomingCommandsProcessing = gsmIncomingCommandsProcessing;
     gsm.huart = &huart1;
@@ -70,6 +86,7 @@ void InitGsmTask(void)
     }
     //gsm.txSemaphore = gsmTxSemHandle;
     gsm.rxSize = GSM_BUFSIZE_RX;
+    gsm.useEcho = true;
     AT_Start(&gsm);
     printf(" ok.\n");
 }
@@ -83,10 +100,16 @@ void gsmTask(void)
     AT_result_t res;
     
     // "RDY\r", "+CPIN: ",    "Call Ready\r",   "SMS Ready\r",   "RING\r",   "NO CARRIER\r");
-    if (AT_Command(&gsm, "AT+COPS?", 1000, 2, "+COPS:", "ERROR") == 1)
+    if (AT_Command(&gsm, "AT+CLIP=1\r", 1000, 2, "OK\r", "ERROR\r") == 1) {
+        printf("AOH is on!\n");
+    }
+    
+    
+    if (AT_Command(&gsm, "AT+COPS?\r", 1000, 2, "+COPS:", "ERROR") == 1)
     {
-        AT_Gets(&gsm, str, 10);
-        printf("Operator \"%s\"\n", str);
+        AT_Gets(&gsm, str, 100);
+        printf("Operator - \"%s\"\n", str);
+        AT_ClearCurrentCommand(&gsm);
     }
     
     for (int i = 0; i < 10; i++) {

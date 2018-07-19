@@ -14,7 +14,7 @@ LeaveTargetRunning=_ 0
 stlinkserialNo=9DDC125D
 stlinkfoundProbes=
 [DebugChecksum]
-Checksum=-559453764
+Checksum=1958628
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -110,10 +110,8 @@ ShowTiming=0
 [Disassemble mode]
 mode=0
 [Breakpoints2]
-Bp0=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\Src\Tasks\GSMTask.c}.88.9" 0 0 1 "" 0 "" 0
-Bp1=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\Src\AT_com\ATcom.c}.206.17" 0 0 1 "" 0 "" 0
-Bp2=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\Src\AT_com\ATcom.c}.190.5" 0 0 1 "" 0 "" 0
-Count=3
+Bp0=_ 0 "EMUL_CODE" "{$PROJ_DIR$\..\Src\Tasks\GSMTask.c}.147.1" 0 0 1 "" 0 "" 0
+Count=1
 [Aliases]
 Count=0
 SuppressDialog=0
