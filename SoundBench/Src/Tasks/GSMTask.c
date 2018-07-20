@@ -15,6 +15,8 @@ extern UART_HandleTypeDef huart1;
 extern osSemaphoreId gsmTxSemHandle;
 ATcom_t gsm;
 
+
+
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
     AT_Start(&gsm);
@@ -35,7 +37,20 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
 void gsmErrorProcessing(char *errorMessage, int errorCode)
 {
-     printf("ERROR!  %s - %d !\n", errorMessage, errorCode);
+    printf("\n\nERROR! %s - %d  ", errorMessage, errorCode);
+    switch (gsm.lastResult) {
+      case AT_ERROR_ECHO:               printf("AT_ERROR_ECHO");       break;
+      case AT_ERROR_FORMAT:             printf("AT_ERROR_FORMAT");     break;
+      case AT_ERROR_INCOMING_OVERFLOW:  printf("AT_ERROR_INCOMING_OVERFLOW");  break;
+      case AT_ERROR_RX:                 printf("AT_ERROR_RX");         break;
+      case AT_ERROR_TX:                 printf("AT_ERROR_TX");         break;
+      case AT_OK:                       printf("AT_OK");               break;
+      case AT_REBOOT:                   printf("AT_REBOOT");           break;
+      case AT_TIMEOUT:                  printf("AT_TIMEOUT");          break;
+    }
+    printf ("   \"");
+    AT_PrintfLastCommand(&gsm);
+    printf ("\" \n");
 }
 //------------------------------------------------------------------------------
 
@@ -109,16 +124,10 @@ void gsmTask(void)
     {
         AT_Gets(&gsm, str, 100);
         printf("Operator - \"%s\"\n", str);
-        AT_ClearCurrentCommand(&gsm);
     }
-    
-    for (int i = 0; i < 10; i++) {
-        while (AT_LookupNextCommand(&gsm, 100)) {
-            AT_ClearCurrentCommand(&gsm);
-        }
-    }
-    
-    
+    osDelay(500);
+    AT_WaitCommand(&gsm, NULL, 500); // processing all incoming commands in buffer 
+  
     
     
    // osDelay(1000);

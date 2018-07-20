@@ -11,9 +11,9 @@ static void AT_Error(ATcom_t *com, char *title, int arg, AT_result_t code);
 
 static void AT_Error(ATcom_t *com, char *title, int arg, AT_result_t code)
 {
-    com->errorLoggingCallback(title, arg);
+    com->state = AS_ERROR; 
     com->lastResult = code;
-    com->state = AS_ERROR;  
+    com->errorLoggingCallback(title, arg);     
 }
 //---------------------------------------------------------------------------
 
@@ -32,6 +32,22 @@ bool AT_Start(ATcom_t *com)   // must added at start of programm and in HAL_UART
         return false;
     }
     return true;
+}
+//---------------------------------------------------------------------------
+
+void AT_PrintfLastCommand(ATcom_t *com)
+{
+    int ptr = com->cmdPtr;
+    char byte = '\0';
+    
+    com->cmdPtr = com->cmdStart; 
+    while (AT_GetByte(com, (uint8_t*)&byte)) {
+        if (byte == '\r' || byte == '\n' || byte == '\0') {
+            break;
+        }
+        printf("%c", byte);
+    }
+    com->cmdPtr = ptr;
 }
 //---------------------------------------------------------------------------
 
@@ -60,29 +76,12 @@ bool AT_SendString(ATcom_t *com, char *data)
 }
 //---------------------------------------------------------------------------
 
-static void AT_StartRead(ATcom_t *com)
-{
-    com->cmdEnd = com->rxSize - com->huart->hdmarx->Instance->CNDTR;    
-    com->cmdPtr = com->cmdStart;
-    com->cmdLen = 0; 
-}
-//---------------------------------------------------------------------------
-
-static void AT_EndRead(ATcom_t *com)
-{
-    com->cmdStart = com->cmdPtr;   
-    com->rxLen -= com->cmdLen;
-    com->cmdLen = 0;
-}
-//---------------------------------------------------------------------------
-
 static bool AT_GetByte(ATcom_t *com, uint8_t *byte)
 {
     if (com->cmdPtr != com->cmdEnd) {
         if (byte != NULL) {
             *byte = com->rxBuf[com->cmdPtr];
         }
-        com->cmdLen++;
         com->cmdPtr++;
         if (com->cmdPtr == com->rxSize) {
             com->cmdPtr = 0;
@@ -99,70 +98,72 @@ uint32_t AT_Gets(ATcom_t *com, char *str, uint32_t strSize)
     uint32_t timer = HAL_GetTick();
     char byte;
     
-    while (AT_GetByte(com, (uint8_t*)&byte)) {
-        if (n == strSize - 1 || byte == '\n' || byte == '\r' || byte == '\0') {
+    while (AT_GetByte(com, (uint8_t*)&byte) && n+1 < strSize) {
+        if (byte == '\n' || byte == '\r' || byte == '\0') {
             if (n) {
                 if (str != NULL) {
-                    str = '\0';
+                    str[n] = '\0';
                 }
                 return n + 1;
             } else {
-                AT_EndRead(com);
+                continue;  
             }
         } else {
-            n++;
             if (str != NULL) {
-                *str = byte;
-                str++;
+                str[n] = byte;
             }
-            
+            n++;
         }
     }
     if (str != NULL) {
-        str = '\0';
+        str[n] = '\0';
     }
     return 0;
 }
 //---------------------------------------------------------------------------
 
-void AT_ClearCurrentCommand(ATcom_t *com)
-{
-    AT_StartRead(com);
-    AT_Gets(com, NULL, com->cmdLen);
-    AT_EndRead(com);
-}
-//---------------------------------------------------------------------------
-
 bool AT_LookupNextCommand(ATcom_t *com, uint32_t timeout)
 {
-    uint32_t timer = HAL_GetTick();
+    uint32_t timer = HAL_GetTick(), n = 0;
     char byte = 0;
     
-    while (1) {
-        AT_StartRead(com);
-        if (AT_Gets(com, NULL, com->rxSize)) {
+    do {
+        if (com->cmdLen) {
+            com->rxLen -= com->cmdLen; 
+            com->cmdStart = com->cmdEnd;
+        }
+        com->cmdEnd = com->rxSize - com->huart->hdmarx->Instance->CNDTR;    
+        com->cmdPtr = com->cmdStart; 
+        com->cmdLen = 0; // AT_Gets(com, NULL, com->rxSize);        
+      
+        
+        while (AT_GetByte(com, (uint8_t*)&byte) && n < com->rxSize) {
+            if (byte == '\n' || byte == '\r' || byte == '\0') {
+                if (n) {
+                    com->cmdLen = n+1;
+                    break;
+                } else {
+                    com->cmdStart = com->cmdPtr;
+                    com->rxLen--; 
+                    continue;  
+                }
+            }
+            n++;
+        }
+        if (com->cmdLen) {
+            com->cmdEnd = com->cmdPtr;
             
-            AT_StartRead(com);
             printf("\t\t\t");
-            do {
-                AT_GetByte(com, (uint8_t*)&byte);
-                printf("%c", byte);
-            } while (byte != '\r');
+            AT_PrintfLastCommand(com);
             printf("\n");
             
-            AT_StartRead(com);
-            if (com->incomingCommandsProcessing()) {
-                AT_ClearCurrentCommand(com);
-                continue;
-            }
-            AT_StartRead(com);            
+            com->cmdPtr = com->cmdStart; 
+            com->incomingCommandsProcessing();
+            com->cmdPtr = com->cmdStart; 
             return true;
         }
-        if (HAL_GetTick() - timer > timeout) {
-            break;
-        }
         osDelay(AT_MIN_TIMEOUT);
-    }  
+    }  while (HAL_GetTick() - timer < timeout);
     return false;
 }
 //---------------------------------------------------------------------------
@@ -171,8 +172,10 @@ bool AT_LookupStr(ATcom_t *com, char *str)
 {
     char byte;
     int n = 0, len = strlen(str);
-    
-    AT_StartRead(com);
+    if (str == NULL) {
+        return false;
+    }
+    com->cmdPtr = com->cmdStart; 
     while (AT_GetByte(com, (uint8_t*)&byte)) {
         if (byte == str[n]) {
             n++;
@@ -190,52 +193,49 @@ bool AT_LookupStr(ATcom_t *com, char *str)
 }
 //---------------------------------------------------------------------------
 
-uint32_t AT_Command(ATcom_t *com, char *command, uint32_t timeout, uint32_t countOfAnswersVariants, ...)
-{	
-    char *str, byte;
-    int n = 0, len = strlen(command);
-    uint32_t timer = HAL_GetTick(), fulRxBufferTimeout = 1 + (1000 * com->rxSize) / (com->huart->Init.BaudRate / 10);
-    va_list tag;
-        
-    while (AT_LookupNextCommand(com, 0)) {
-        AT_ClearCurrentCommand(com);
-    }
-        
-    AT_StartRead(com);
-    AT_SendString(com, command);
-    if (com->useEcho) {
-        // repeat AT_LookupNextCommand for case, if incoming command started before sending commsnd and it comes before echo
-        for (n = 0; n < 2; n++) {
-            if (AT_LookupNextCommand(com, fulRxBufferTimeout)) {
-                if (AT_LookupStr(com, command)) {
-                    break;
-                }
-                AT_ClearCurrentCommand(com);
+bool AT_WaitCommand(ATcom_t *com, char *str, uint32_t timeout)
+{
+    uint32_t timer = HAL_GetTick();
+
+    do {
+        while (AT_LookupNextCommand(com, 0)) {
+            if (AT_LookupStr(com, str)) {
+                return true;
             }
         }
-        if (n == 2) {
-            AT_Error(com, command, len, AT_ERROR_ECHO);
-            AT_ClearCurrentCommand(com);
+    } while (HAL_GetTick() - timer < timeout);
+    return false;
+}
+//---------------------------------------------------------------------------
+
+uint32_t AT_Command(ATcom_t *com, char *command, uint32_t timeout, uint32_t countOfAnswersVariants, ...)
+{	
+    uint32_t timer = HAL_GetTick(); //fulRxBufferTimeout = 1 + (1000 * com->rxSize) / (com->huart->Init.BaudRate / 10);
+    va_list tag;
+        
+    AT_WaitCommand(com, NULL, 0); // clear all previous commands in buffer 
+    AT_SendString(com, command);
+    if (com->useEcho) {
+        if (!AT_WaitCommand(com, command, timeout / 2)) {
+            AT_Error(com, command, 0, AT_ERROR_ECHO);
             return 0;
         }
-        AT_ClearCurrentCommand(com);
-    }
-    
+    }  
     while (HAL_GetTick() - timer <= timeout) {
         if (AT_LookupNextCommand(com, timeout)) {
             va_start (tag, countOfAnswersVariants);
 	        for (int i = 0; i < countOfAnswersVariants; i++) {
-	            str = va_arg (tag, char *);	    
-                if (AT_LookupStr(com, str)) {
-                    va_end (tag);  
+                if (AT_LookupStr(com, va_arg (tag, char *))) {
+                    va_end (tag); 
+                    com->lastResult = AT_OK;
+                    com->state = AS_READY;
                     return i + 1;
                 }
             }
             va_end (tag);      
-            AT_ClearCurrentCommand(com);
         }
     }
-    AT_Error(com, command, len, AT_TIMEOUT);
+    AT_Error(com, command, 0, AT_TIMEOUT);
     return 0;
 }
 //------------------------------------------------------------------------------

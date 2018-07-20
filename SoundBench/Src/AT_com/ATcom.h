@@ -11,7 +11,7 @@
 #include <stdarg.h>
 #include "cmsis_os.h"
 
-#define	AT_MIN_TIMEOUT 	     10  // ms
+#define	AT_MIN_TIMEOUT 	     100  // ms
 
 typedef enum {
     AT_OK = 0,
@@ -26,11 +26,7 @@ typedef enum {
 
 typedef enum {
     AS_NOT_INIT = 0,
-    AS_POWER_OFF,
     AS_READY, //(waiting AT command)
-    AS_SENDING,
-    AS_WAITING_ECHO,
-    AS_WAITING_ANSWER,
     AS_SENDING_DATA,
     AS_RECEIVING_DATA,
     AS_ERROR
@@ -44,7 +40,7 @@ typedef struct
     osMutexId           busyMutex;
 	uint8_t             *rxBuf;
     int                 rxSize;
-    int                 rxLen;
+    volatile int        rxLen;
     int                 cmdPtr;
     int                 cmdLen;
     int                 rawPtr;
@@ -68,8 +64,9 @@ uint32_t    AT_GetRaw(ATcom_t *com, uint8_t *buf, uint32_t bufSize, uint32_t tim
 bool        AT_SendString(ATcom_t *com, char *data);
 uint32_t    AT_Command(ATcom_t *com, char *command, uint32_t timeout, uint32_t countOfAnswersVariants, ...);
 bool        AT_LookupNextCommand(ATcom_t *com, uint32_t timeout);
-void        AT_ClearCurrentCommand(ATcom_t *com);
+bool        AT_WaitCommand(ATcom_t *com, char *str, uint32_t timeout);
 bool        AT_LookupStr(ATcom_t *com, char *str);
+void        AT_PrintfLastCommand(ATcom_t *com);
 #endif
 
 
