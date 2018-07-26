@@ -56,7 +56,7 @@ bool        AT_Init(ATcom_t *com);
 bool        AT_Start(ATcom_t *com);   // must added at start of programm and in HAL_UART_ErrorCallback  !
 bool        AT_Lock(ATcom_t *com, uint32_t timeout);
 bool        AT_Unlock(ATcom_t *com);
-uint32_t    AT_Gets(ATcom_t *com, char *str, uint32_t strSize);
+uint32_t    AT_Gets(ATcom_t *com, char *str, uint32_t strSize, char *endChars);
 void        AT_RxUartDmaISR(ATcom_t *com);  // must added to HAL_UART_RxCpltCallback  and  HAL_UART_RxHalfCpltCallback 
 bool        AT_SendRaw(ATcom_t *com, uint8_t *data, uint32_t len);
 bool        AT_SendString(ATcom_t *com, char *data);

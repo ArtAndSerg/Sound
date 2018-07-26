@@ -92,13 +92,19 @@ static bool AT_GetByte(ATcom_t *com, uint8_t *byte)
 }
 //---------------------------------------------------------------------------
 
-uint32_t AT_Gets(ATcom_t *com, char *str, uint32_t strSize) 
+uint32_t AT_Gets(ATcom_t *com, char *str, uint32_t strSize, char *endChars) 
 {
     uint32_t n = 0;
     uint32_t timer = HAL_GetTick();
     char byte;
     
     while (AT_GetByte(com, (uint8_t*)&byte) && n+1 < strSize) {
+        if (endChars != NULL) {
+            if (strrchr(endChars, byte)) {
+                byte = '\0';
+            }
+        }
+        
         if (byte == '\n' || byte == '\r' || byte == '\0') {
             if (n) {
                 if (str != NULL) {
@@ -212,6 +218,7 @@ uint32_t AT_Command(ATcom_t *com, char *command, uint32_t timeout, uint32_t coun
 {	
     uint32_t timer = HAL_GetTick(); //fulRxBufferTimeout = 1 + (1000 * com->rxSize) / (com->huart->Init.BaudRate / 10);
     va_list tag;
+    bool flag = false;
         
     AT_WaitCommand(com, NULL, 0); // clear all previous commands in buffer 
     AT_SendString(com, command);
@@ -222,18 +229,23 @@ uint32_t AT_Command(ATcom_t *com, char *command, uint32_t timeout, uint32_t coun
         }
     }  
     while (HAL_GetTick() - timer <= timeout) {
-        if (AT_LookupNextCommand(com, timeout)) {
-            va_start (tag, countOfAnswersVariants);
-	        for (int i = 0; i < countOfAnswersVariants; i++) {
-                if (AT_LookupStr(com, va_arg (tag, char *))) {
-                    va_end (tag); 
-                    com->lastResult = AT_OK;
-                    com->state = AS_READY;
-                    return i + 1;
-                }
+        if (strstr(command, "SEND=") == NULL) {
+            if (!AT_LookupNextCommand(com, timeout)) {
+                continue;
             }
-            va_end (tag);      
+        } else {
+            AT_LookupNextCommand(com, 0);
         }
+        va_start (tag, countOfAnswersVariants);
+        for (int i = 0; i < countOfAnswersVariants; i++) {
+            if (AT_LookupStr(com, va_arg (tag, char *))) {
+                va_end (tag); 
+                com->lastResult = AT_OK;
+                com->state = AS_READY;
+                return i + 1;
+            }
+        }
+        va_end (tag);      
     }
     AT_Error(com, command, 0, AT_TIMEOUT);
     return 0;

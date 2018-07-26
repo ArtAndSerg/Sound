@@ -15,7 +15,10 @@ extern UART_HandleTypeDef huart1;
 extern osSemaphoreId gsmTxSemHandle;
 ATcom_t gsm;
 
+int gsmState = 0;
+int echo = 0;
 
+bool gsmIncomingCommandsProcessing(void);
 
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
@@ -54,37 +57,6 @@ void gsmErrorProcessing(char *errorMessage, int errorCode)
 }
 //------------------------------------------------------------------------------
 
-bool gsmIncomingCommandsProcessing(void)
-{
-    bool res = false;
-    static char str[100];
-    
-    if (AT_LookupStr(&gsm, "RING\r")) {
-        printf("\n>> Ring!\n");
-        AT_SendString(&gsm, "ATH\r");
-        res = true;
-    }
-    if (AT_LookupStr(&gsm, "RDY\r")) {
-        printf("\n>> Ready.\n");
-        res = true;
-    }
-    if (AT_LookupStr(&gsm, "+CLIP: ")) {
-        AT_Gets(&gsm, str, 100);
-        printf("\n>> Calling: %s\n", str);
-        res = true;
-    }
-    
-    if (AT_LookupStr(&gsm, "NORMAL POWER DOWN\r")) {
-        printf("\n>> Power down.\n");
-        osDelay(1000);
-        HAL_NVIC_SystemReset();
-        res = true;
-    }
-    
-    return res;
-}
-//------------------------------------------------------------------------------
-
 void InitGsmTask(void)
 {
     printf("\n\nGSM init... ");
@@ -107,27 +79,123 @@ void InitGsmTask(void)
 }
 //------------------------------------------------------------------------------
 
+bool gsmIncomingCommandsProcessing(void)
+{
+    bool res = false;
+    static char str[100];
+
+    
+
+    if (AT_LookupStr(&gsm, "+BTPAIRING: \"")) {
+        AT_Gets(&gsm, str, sizeof(str), "\"");
+        printf("Pairing with phone \"%s\"\n", str);
+        AT_SendString(&gsm, "AT+BTPAIR=1,1\r");
+        res = true;
+    }
+    
+    if (AT_LookupStr(&gsm, "+BTCONNECT: ")) {
+        AT_Gets(&gsm, str, sizeof(str), "\"");
+        AT_Gets(&gsm, str, sizeof(str), "\"");
+        printf("Connected phone \"%s\"\n", str);
+        res = true;
+    }
+    
+    if (AT_LookupStr(&gsm, "+BTCONNECTING: \"")) {
+        printf("Connected programm\n");
+        AT_SendString(&gsm, "AT+BTACPT=1\r");
+        res = true;
+    }
+    
+    
+    if (AT_LookupStr(&gsm, "+BTSPPDATA: ")) {
+        AT_Gets(&gsm, str, sizeof(str), ",");
+        AT_Gets(&gsm, str, sizeof(str), ",");
+        AT_Gets(&gsm, str, sizeof(str), NULL);
+        printf("<<<<<< \"%s\"\n", str);
+        if (str[0] == '1') {
+            echo = 1;
+        } 
+        //echo++;
+        res = true;
+    }
+    
+    
+
+    
+
+    
+    if (AT_LookupStr(&gsm, "RING\r")) {
+        printf("\n>> Ring!\n");
+        AT_SendString(&gsm, "ATH\r");
+        res = true;
+    }
+    if (AT_LookupStr(&gsm, "RDY\r")) {
+        printf("\n>> Ready.\n");
+        res = true;
+    }
+    if (AT_LookupStr(&gsm, "+CLIP: ")) {
+        AT_Gets(&gsm, str, 100, NULL);
+        printf("\n>> Calling: %s\n", str);
+        res = true;
+    }
+    
+    if (AT_LookupStr(&gsm, "NORMAL POWER DOWN\r")) {
+        printf("\n>> Power down.\n");
+        osDelay(1000);
+        HAL_NVIC_SystemReset();
+        res = true;
+    }
+    
+    return res;
+}
+//------------------------------------------------------------------------------
+
+
+
 void gsmTask(void)
 {
-    int answerNum;
+    int answerNum, pecho=0;
     static char str[100];
     memset(str, 0, 10);
     AT_result_t res;
-    
+   
+    AT_WaitCommand(&gsm, "+CPIN: READY", 20000);
+    osDelay(3000);    
     // "RDY\r", "+CPIN: ",    "Call Ready\r",   "SMS Ready\r",   "RING\r",   "NO CARRIER\r");
-    if (AT_Command(&gsm, "AT+CLIP=1\r", 1000, 2, "OK\r", "ERROR\r") == 1) {
-        printf("AOH is on!\n");
+    if (AT_Command(&gsm, "AT+BTHOST=Postamat\r", 3000, 2, "OK\r", "ERROR\r") == 1) {
+        printf("BT is on!\n");
     }
     
-    
-    if (AT_Command(&gsm, "AT+COPS?\r", 1000, 2, "+COPS:", "ERROR") == 1)
-    {
-        AT_Gets(&gsm, str, 100);
-        printf("Operator - \"%s\"\n", str);
+    if (AT_Command(&gsm, "AT+BTPOWER=1\r", 10000, 2, "OK\r", "ERROR") == 1) {
+        printf("BT is in power!\n");
+        
     }
     osDelay(500);
-    AT_WaitCommand(&gsm, NULL, 500); // processing all incoming commands in buffer 
-  
+    
+    
+    while (1) {
+        while (AT_WaitCommand(&gsm, NULL, 1000));
+        if (echo) {
+            if (AT_Command(&gsm, "AT+BTRSSI=1\r", 5000, 2, "+BTRSSI: ", "ERROR\r") == 1) {
+                AT_Gets(&gsm, str, sizeof(str), NULL);
+                strcat(str, " RSSI\r\n\r\n\r\n");
+                //osDelay(3000);
+                if (AT_Command(&gsm, "AT+BTSPPSEND=10\r", 5000, 2, "> ", "ERROR\r") == 1) {
+                    //sprintf(str, "%04d\r\n\r\n", echo);
+                    //sprintf(str, "Shiptor!\r\n\r");
+                    AT_SendString(&gsm, str);
+                    printf(">>>>>>  ", str);
+                }
+            } else {
+                printf("|\n");
+                echo = 0;
+               // break;
+            }
+        }
+        pecho = echo;
+    }
+           
+
     
     
    // osDelay(1000);
