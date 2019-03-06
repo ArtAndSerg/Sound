@@ -256,7 +256,7 @@ void  __fastcall TForm1::OpenWAV(String filename)
        index = 0;
        DecodeFrom_ADPCM_to_WAV(wavData2, adpcmData, (size / sizeof(signed short)) / 2);
 
-       Form1->Caption = "Ôאיכ \"" + ExtractFileName(OpenDialog1->FileName) + "\", נאחלונ " +
+       Form1->Caption = "Ôאיכ \"" + ExtractFileName(filename) + "\", נאחלונ " +
                         IntToStr(sizeWavInBytes / 1024) + "ךÁ. (" + IntToStr((sizeWavInBytes / 4) / 1024) + "ךÁ.)";
        showingWindow = 10000;
        TrackBar1->Max = sizeWavInBytes/2;
@@ -395,10 +395,16 @@ void __fastcall TForm1::N5Click(TObject *Sender)
        if((tFileInfo.Name != ".") && (tFileInfo.Name != "..") &&
            (tFileInfo.Attr & faDirectory) != faDirectory)
        {
+//           Application->ProcessMessages();
            OpenWAV(path + "wav\\" + tFileInfo.Name);
-           refreshGUI();
-           Application->ProcessMessages();
+  //         refreshGUI();
+  //         Application->ProcessMessages();
+  //         Sleep(100);
            SaveADPCM(path + "raw\\" + ChangeFileExt(tFileInfo.Name, ".raw"));
+           Form1->Caption =  tFileInfo.Name;
+           Application->ProcessMessages();
+           Sleep(100);
+           Application->ProcessMessages();
        }
      } while (FindNext(tFileInfo) == 0);
    }

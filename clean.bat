@@ -15,4 +15,8 @@ del SoundBench\EWARM\SoundBench\Obj\*.* /Q
 del sound103\EWARM\sound103\Exe\*.* /Q
 del sound103\EWARM\sound103\List\*.* /Q
 del sound103\EWARM\sound103\Obj\*.* /Q
+del DALLAS\Dallas\EWARM\Dallas\Exe\*.* /Q
+del DALLAS\Dallas\EWARM\Dallas\List\*.* /Q
+del DALLAS\Dallas\EWARM\Dallas\Obj\*.* /Q
+
 
