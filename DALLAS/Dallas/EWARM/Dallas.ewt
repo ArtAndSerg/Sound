@@ -1234,6 +1234,9 @@
       <file>
         <name>$PROJ_DIR$\..\Drivers\STM32F1xx_HAL_Driver\Src\stm32f1xx_hal_tim_ex.c</name>
       </file>
+      <file>
+        <name>$PROJ_DIR$\..\Drivers\STM32F1xx_HAL_Driver\Src\stm32f1xx_hal_uart.c</name>
+      </file>
     </group>
   </group>
   <group>
@@ -1271,6 +1274,15 @@
         <name>$PROJ_DIR$\..\Middlewares\Third_Party\FreeRTOS\Source\timers.c</name>
       </file>
     </group>
+  </group>
+  <group>
+    <name>Tasks</name>
+    <file>
+      <name>$PROJ_DIR$\..\Src\Dallas.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\Src\TaskMain.c</name>
+    </file>
   </group>
 </project>
 
