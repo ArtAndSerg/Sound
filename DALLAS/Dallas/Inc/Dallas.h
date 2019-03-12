@@ -1,18 +1,24 @@
 // File: "Dallas.h"
 
+/* Define to prevent recursive inclusion -------------------------------------*/
+#ifndef __DALLAS_H__
+#define __DALLAS_H__
+
 #include "stm32f1xx_hal.h"
 
 //Internal function----------------------------
 #define SENSORS_PER_LINE_MAXCOUNT 60
-#define LINES_MAXCOUNT 10
-
+#define LINE_TIMEOUT 1000   // in microseconds
+ 
 typedef enum
 {
-    DS_ANS_OK = 0,
+    DS_ANS_UNKNNOWN = 0,
+    DS_ANS_OK,
     DS_ANS_FAIL,
     DS_ANS_SHORTCUT,
     DS_ANS_NOANS,
-    DS_ANS_EMPTY
+    DS_ANS_CRC,
+    DS_ANS_DISABLED
 } dsResult_t;
 
 //iButton commands-----------------------------
@@ -41,7 +47,9 @@ typedef struct
     GPIO_TypeDef *ioPort;
 } lineOptions_t;
 
-dsResult_t DSGetID          (lineOptions_t *line, unsigned char *val);
-dsResult_t DSGetTemperature (lineOptions_t *line, short *val, unsigned char *id);
-dsResult_t DSConvertStart   (lineOptions_t *line);
-dsResult_t DSFindAllId      (lineOptions_t *line);
+dsResult_t dsGetID          (lineOptions_t *line, unsigned char *val);
+dsResult_t dsGetTemperature (lineOptions_t *line, short *val, unsigned char *id);
+dsResult_t dsConvertStart   (lineOptions_t *line);
+dsResult_t dsFindAllId      (lineOptions_t *line);
+
+#endif

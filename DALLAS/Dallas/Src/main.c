@@ -52,7 +52,7 @@
 #include "cmsis_os.h"
 
 /* USER CODE BEGIN Includes */
-
+#include "TaskMain.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -339,9 +339,12 @@ void StartDefaultTask(void const * argument)
 {
 
   /* USER CODE BEGIN 5 */
+   initTaskMain();
+
   /* Infinite loop */
   for(;;)
   {
+    processTaskMain();
     osDelay(1);
   }
   /* USER CODE END 5 */ 

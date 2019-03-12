@@ -1,31 +1,255 @@
 
 #include "Dallas.h"
 #include "main.h"
+#include "cmsis_os.h"
 
-#define holdLine(line)  HAL_GPIO_WritePin(line->ioPort, line->ioPin, GPIO_PIN_RESET)
-#define releaseLine(line)  HAL_GPIO_WritePin(line->ioPort, line->ioPin, GPIO_PIN_SET)
-#define getLine(line)  HAL_GPIO_ReadPin(line->ioPort, line->ioPin)
+#define TICK            (DWT->CYCCNT)
+#define TICK_us         (SystemCoreClock / 1000000)
+#define holdLine(a)     (HAL_GPIO_WritePin(a->ioPort, a->ioPin, GPIO_PIN_RESET))
+#define releaseLine(a)  (HAL_GPIO_WritePin(a->ioPort, a->ioPin, GPIO_PIN_SET))
+#define getLine(a)      (a->ioPort->IDR & a->ioPin)
+
+//(HAL_GPIO_ReadPin(a->ioPort, a->ioPin) == GPIO_PIN_SET)
 
 static dsResult_t startLine (lineOptions_t *line);
-static void sendBit  (lineOptions_t *line, unsigned char Bit);
-static int  getBit   (lineOptions_t *line, unsigned char *Bit);
-static void sendByte    (lineOptions_t *line, unsigned char val);
-static int  getByte     (lineOptions_t *line);
-static unsigned char DSCRC8(unsigned char *buf, unsigned char n);
+static unsigned int whileLineStayUp   (lineOptions_t *line, unsigned int timeout);
+static unsigned int whileLineStayHold (lineOptions_t *line, unsigned int timeout);
 
-void sDelay(unsigned int parrots)
+static void sendBit  (lineOptions_t *line, int Bit);
+static int  getBit   (lineOptions_t *line);
+static void sendByte    (lineOptions_t *line, int val);
+static int  getByte     (lineOptions_t *line);
+static void readBuf(lineOptions_t *line, unsigned char *buf, int size);
+static void writeBuf(lineOptions_t *line, unsigned char *buf, int size);
+static unsigned char dallasCRC8(unsigned char *buf, int n);
+/*
+static const unsigned char crcTable[] = {
+0, 94, 188, 226, 97, 63, 221, 131, 194, 156, 126, 32, 163, 253, 31, 65,
+157, 195, 33, 127, 252, 162, 64, 30, 95, 1, 227, 189, 62, 96, 130, 220,
+35, 125, 159, 193, 66, 28, 254, 160, 225, 191, 93, 3, 128, 222, 60, 98,
+190, 224, 2, 92, 223, 129, 99, 61, 124, 34, 192, 158, 29, 67, 161, 255,
+70, 24, 250, 164, 39, 121, 155, 197, 132, 218, 56, 102, 229, 187, 89, 7,
+219, 133, 103, 57, 186, 228, 6, 88, 25, 71, 165, 251, 120, 38, 196, 154,
+101, 59, 217, 135, 4, 90, 184, 230, 167, 249, 27, 69, 198, 152, 122, 36,
+248, 166, 68, 26, 153, 199, 37, 123, 58, 100, 134, 216, 91, 5, 231, 185,
+140, 210, 48, 110, 237, 179, 81, 15, 78, 16, 242, 172, 47, 113, 147,205,
+17, 79, 173, 243, 112, 46, 204, 146, 211, 141, 111, 49, 178, 236, 14, 80,
+175, 241, 19, 77, 206, 144, 114, 44, 109, 51, 209, 143, 12, 82, 176, 238,
+50, 108, 142, 208, 83, 13, 239, 177, 240, 174, 76, 18, 145, 207, 45, 115,
+202, 148, 118, 40, 171, 245, 23, 73, 8, 86, 180, 234, 105, 55, 213, 139,
+87, 9, 235, 181, 54, 104, 138, 212, 149, 203, 41, 119, 244, 170, 72, 22,
+233, 183, 85, 11, 136, 214, 52, 106, 43, 117, 151, 201, 74, 20, 246, 168,
+116, 42, 200, 150, 21, 75, 169, 247, 182, 232, 10, 84, 215, 137, 107, 53};
+*/
+static __INLINE void sDelay(unsigned int us) 
 {
-   for (volatile int i = 0; i < parrots; i++);
+   DWT->CYCCNT = 0;
+   volatile unsigned int timeout = us * TICK_us;  
+   while(DWT->CYCCNT < timeout);
+}
+//-----------------------------------------------------------------------------
+
+static unsigned int whileLineStayUp   (lineOptions_t *line, unsigned int timeout)
+{   
+    TICK = 0;
+    timeout *= TICK_us;
+    while (getLine(line) && TICK < timeout);
+    return TICK / TICK_us;
+}
+//-----------------------------------------------------------------------------
+
+static unsigned int whileLineStayHold (lineOptions_t *line, unsigned int timeout)
+{
+    TICK = 0;
+    timeout *= TICK_us;
+    while (!getLine(line) && TICK < timeout);
+    return TICK / TICK_us;
 }
 //-----------------------------------------------------------------------------
 
 static dsResult_t startLine (lineOptions_t *line)
 {
+    dsResult_t res = DS_ANS_OK; 
     
+    DWT->CTRL |= (DWT_CTRL_EXCTRCENA_Msk | DWT_CTRL_CYCCNTENA_Msk);
+       
+    if (!getLine(line)) {
+        releaseLine(line);
+        if (whileLineStayHold(line, LINE_TIMEOUT) == LINE_TIMEOUT) {
+            res = DS_ANS_SHORTCUT;
+            goto error;
+        }
+        HAL_Delay(1);
+    }
+    holdLine(line);
+    if (whileLineStayUp(line, LINE_TIMEOUT) == LINE_TIMEOUT) {
+        res = DS_ANS_FAIL;
+        goto error;
+    }
+    sDelay(500);
+    releaseLine(line);
+    line->setUpTime = whileLineStayHold(line, LINE_TIMEOUT);
+    if (line->setUpTime == LINE_TIMEOUT){
+        res = DS_ANS_SHORTCUT;
+        goto error;
+    }
+    if (whileLineStayUp(line, 60) == 60) {
+        res = DS_ANS_NOANS;
+        goto error;
+    }
+    if (whileLineStayHold(line, 240 + line->setUpTime) == 240 + line->setUpTime) {
+        res = DS_ANS_SHORTCUT;
+        goto error;
+    }
+    
+  error:
+    releaseLine(line);
+    sDelay(500);
+    return res;
 }
 //-----------------------------------------------------------------------------
 
+static void sendBit (lineOptions_t *line, int val)
+{
+    holdLine(line);
+    whileLineStayUp(line, LINE_TIMEOUT);
+    if (!val) {
+        sDelay(60);
+        releaseLine(line);
+    } else {
+        sDelay(1);
+        releaseLine(line);
+        sDelay(60);
+    }
+    whileLineStayHold(line, LINE_TIMEOUT);
+    sDelay(1);
+}
+//-----------------------------------------------------------------------------
 
+static int getBit (lineOptions_t *line)
+{
+    int t;
+    
+    holdLine(line);
+    whileLineStayUp(line, LINE_TIMEOUT);
+    sDelay(1);
+    releaseLine(line);
+    t = whileLineStayHold(line, 60 + line->setUpTime);
+    if (t > 15 + line->setUpTime) {
+        sDelay(61 + line->setUpTime - t);
+        return 0;
+    } else {
+        sDelay(61 + line->setUpTime - t);
+        return 1;
+    }
+}
+//-----------------------------------------------------------------------------
+
+static void sendByte (lineOptions_t *line, int val)
+{
+    sendBit(line, val & 0x01);
+	sendBit(line, val & 0x02);
+	sendBit(line, val & 0x04);
+	sendBit(line, val & 0x08);
+	sendBit(line, val & 0x10);
+	sendBit(line, val & 0x20);
+	sendBit(line, val & 0x40);
+	sendBit(line, val & 0x80);
+}
+//-----------------------------------------------------------------------------
+
+static int getByte(lineOptions_t *line)
+{
+	unsigned char res = 0;
+	
+	if(getBit(line)) {
+		res |= 0x01;
+    }
+	if(getBit(line)) {
+		res |= 0x02;
+    }
+	if(getBit(line)) {
+		res |= 0x04;
+    }
+	if(getBit(line)) {
+		res |= 0x08;
+    }
+	if(getBit(line)) {
+		res |= 0x10;
+    }
+	if(getBit(line)) {
+		res |= 0x20;
+    }
+	if(getBit(line)) {
+		res |= 0x40;
+    }
+	if(getBit(line)) {
+		res |= 0x80;
+    }
+	return res;
+}
+//-----------------------------------------------------------------------------
+
+static unsigned char dallasCRC8(unsigned char *buf, int n)
+{
+    unsigned char  crc = 0x00, tmp;
+    for (int i = 0; i < n; i++)
+    {
+        tmp = buf[i];
+        for(int j = 0; j < 8; j++)
+        {
+            if ((tmp ^ crc) & 1) {
+                crc = ((crc ^ 0x18) >> 1) | 0x80;
+            } else {
+                crc >>= 1;
+            }
+            tmp >>= 1;
+        }
+    }
+/*    
+    unsigned char crc = 0;
+    for (int i = 0; i < n; i++) {
+        crc = crcTable[crc ^ buf[i]];
+    }
+*/
+    return crc;
+}
+//-----------------------------------------------------------------------------
+
+static void readBuf(lineOptions_t *line, unsigned char *buf, int size)
+{
+    for(int i=0; i < size; i++) {
+		buf[i] = getByte(line);
+    }
+}
+//-----------------------------------------------------------------------------
+
+static void writeBuf(lineOptions_t *line, unsigned char *buf, int size)
+{	     
+    for(int i=0; i < size; i++) {
+		sendByte(line, buf[i]);
+    }
+}
+//---------------------------------------------
+
+dsResult_t dsGetID (lineOptions_t *line, unsigned char *val)
+{
+    dsResult_t res;
+	
+    taskENTER_CRITICAL();
+    if ((res = startLine(line)) == DS_ANS_OK) {
+        sendByte(line, DS_ROM_READ);    
+    }
+	readBuf(line, val, 8);
+	if (dallasCRC8(val, 8) != 0) {
+        res = DS_ANS_CRC;
+    }
+    taskEXIT_CRITICAL();     
+	return res;
+}
+//-----------------------------------------------------------------------------
+
+/*
 void DSGetBit(unsigned char *Bit)
 {
 	unsigned char AnswerTime, i;
@@ -109,48 +333,6 @@ void DSSendByte(unsigned char Byte){
 	DSSendBit(Byte&0x80);
 }
 //---------------------------------------------
-unsigned char DSInitLine()
-{
-  unsigned char w1_resp;
-  unsigned char Answer;
- 
-  Delay10us(1);
-  Answer = DSSetDown();
-  if (Answer != DS_ANS_OK) return Answer;
-  Delay10us(35);
-	
-  if(TMIN_IO) return DS_ANS_FAIL;
-  TMOUT_IO = 0;
-  DSUpTime = 1;	
-  
-  while(!TMIN_IO && DSUpTime) DSUpTime++; 
-    
-	w1_resp = 0;
-    while(TMIN_IO){
-		w1_resp++;
-		Delay10us(1);//
-		if(w1_resp > 100) 
-		{
-    	    Nop();
-    	    Nop();
-    	    Nop();
-    	    Nop();
-    		return DS_ANS_NOANS;	
-        }  		
-	}
-	Nop();
-	Nop();
-	Nop();
-    w1_resp = 1;
-    while(!TMIN_IO && w1_resp)
-    {
-        Delay10us(1);//
-        w1_resp++;
-    }    
- 	Delay10us(31);//Á‡‰ÂÊÍ‡ ÔÂÂ‰ ÔÂÂ‰‡˜ÂÈ
-	return DS_ANS_OK;
-}
-//---------------------------------------------
 
 void ReadBuf(unsigned char *Buf, unsigned char Size)
 {
@@ -168,6 +350,17 @@ void WriteBuf(unsigned char *Buf, unsigned char Size)
 //---------------------------------------------
 
 
+dsResult_t DSGetID (lineOptions_t *line, unsigned char *val)
+{
+    dsResult_t res;
+    
+    res = startLine(line);
+    return res;
+}
+//---------------------------------------------
+
+
+/*
 
 BYTE DSGetID(BYTE *val)
 {
@@ -180,6 +373,7 @@ BYTE DSGetID(BYTE *val)
 	return DS_ANS_OK;
 }
 //---------------------------------------------------------------------------------------- 	
+
 
 unsigned char DSCRC8(unsigned char *buf,unsigned char n)
 {
@@ -197,6 +391,9 @@ unsigned char DSCRC8(unsigned char *buf,unsigned char n)
     return crc;
 }
 //-------------------------------------------------------------------------------------
+
+/*
+
 unsigned char DSConvertTemp(void)
 {
 unsigned char Answer=0x00;
@@ -240,14 +437,8 @@ BYTE DSGetTemperature(short *val, BYTE n)
     short tmp;
     static BYTE j;
     
- /*
-  // !!!!!!! Œ“À¿ƒ ¿ ”¡–¿“‹ œŒ“ŒÃ!!!!!!  
-    if (n == 1 || n == 5 || n == 8)
-    {
-         *val = n*10 + j++;
-         return DS_ANS_OK;
-    } 
-   */ 
+ 
+  
     if (n) XEEReadArray(ADDR_DSROM + 8ul * (n-1), ROMid, 8);
   
     memset(Scratchpad, 0xFF, 8);
