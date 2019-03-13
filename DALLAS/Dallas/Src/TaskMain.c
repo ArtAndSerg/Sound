@@ -47,17 +47,21 @@ void initTaskMain(void)
     lines[9].ioPort = U14_GPIO_Port;
     
     for (int i = 0; i < LINES_MAXCOUNT; i++) {
-        lines[i].count = SENSORS_PER_LINE_MAXCOUNT;
+        lines[i].sensorsCount = SENSORS_PER_LINE_MAXCOUNT;
     }
 }
 //-----------------------------------------------------------------------------
 
 void processTaskMain(void)
 {
-   static  uint8_t id[8];
+    static  uint8_t id[8];
     
     HAL_IWDG_Refresh(&hiwdg);
-    dsGetID(&lines[0], id);
-    osDelay(500);
+    dsGetID(&lines[0], lines[0].sensor[0].id);
+    dsConvertStart(&lines[0]);
+    osDelay(TIME_FOR_CONVERTATION);
+    lines[0].lastResult = dsRefreshTemperature(&lines[0], &lines[0].sensor[0]);
 }
 //-----------------------------------------------------------------------------
+
+

@@ -7,9 +7,11 @@
 #include "stm32f1xx_hal.h"
 
 //Internal function----------------------------
-#define SENSORS_PER_LINE_MAXCOUNT 60
-#define LINE_TIMEOUT 1000   // in microseconds
- 
+#define SENSORS_PER_LINE_MAXCOUNT   60
+#define LINE_TIMEOUT                1000   // in microseconds
+#define ID_SIZE                     8
+#define TIME_FOR_CONVERTATION       750
+
 typedef enum
 {
     DS_ANS_UNKNNOWN = 0,
@@ -39,16 +41,23 @@ typedef enum
 
 typedef struct
 {
-    dsResult_t lastResult;
-    int count;
+    unsigned char num; 
+    unsigned char id[ID_SIZE];
+    signed short currentTemperature;
+} sensorOptions_t;
+
+typedef struct
+{
+    sensorOptions_t sensor[SENSORS_PER_LINE_MAXCOUNT];    
+    int sensorsCount;
     int setUpTime;
-    unsigned char id[SENSORS_PER_LINE_MAXCOUNT][8];
     unsigned int ioPin;
     GPIO_TypeDef *ioPort;
+    dsResult_t lastResult;    
 } lineOptions_t;
 
 dsResult_t dsGetID          (lineOptions_t *line, unsigned char *val);
-dsResult_t dsGetTemperature (lineOptions_t *line, short *val, unsigned char *id);
+dsResult_t dsRefreshTemperature (lineOptions_t *line, sensorOptions_t *sensor);
 dsResult_t dsConvertStart   (lineOptions_t *line);
 dsResult_t dsFindAllId      (lineOptions_t *line);
 
