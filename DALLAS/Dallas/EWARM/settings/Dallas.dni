@@ -4,7 +4,7 @@ stlinkfoundProbes=
 CStepIntDis=_ 0
 LeaveTargetRunning=_ 0
 [DebugChecksum]
-Checksum=-657844423
+Checksum=394137075
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -41,6 +41,11 @@ ITMportsEnable=0
 ITMportsTermIO=0
 ITMportsLogFile=0
 ITMlogFile=$PROJ_DIR$\ITM.log
+[struct_types]
+Fmt0=USART_TypeDef-CR1	4	0
+Fmt1=USART_TypeDef-SR	4	0
+[watch_formats]
+Fmt0={W}42:addr	4	0
 [Trace2]
 Enabled=0
 ShowSource=0
@@ -81,6 +86,12 @@ ShowTimeLog=1
 SumEnabled=0
 ShowTimeSum=1
 SumSortOrder=0
+[Disassemble mode]
+mode=0
+[Breakpoints2]
+Bp0=_ 0 "EMUL_CODE" "{$PROJ_DIR$\..\Src\stm32f1xx_it.c}.235.1" 0 0 1 "" 0 "" 0
+Bp1=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\Src\Modbus.c}.32.5" 0 0 1 "" 0 "" 0
+Count=2
 [Log file]
 LoggingEnabled=_ 0
 LogFile=_ ""
@@ -88,6 +99,9 @@ Category=_ 0
 [TermIOLog]
 LoggingEnabled=_ 0
 LogFile=_ ""
+[Aliases]
+Count=0
+SuppressDialog=0
 [DriverProfiling]
 Enabled=0
 Mode=3
@@ -98,10 +112,3 @@ Exclusions=
 Enabled=0
 [CallStackStripe]
 ShowTiming=0
-[Disassemble mode]
-mode=0
-[Breakpoints2]
-Count=0
-[Aliases]
-Count=0
-SuppressDialog=0

@@ -79,14 +79,17 @@ static dsResult_t startLine (lineOptions_t *line)
             res = DS_ANS_SHORTCUT;
             goto error;
         }
-        HAL_Delay(1);
+        sDelay(1000);
     }
+    __disable_interrupt();
     holdLine(line);
     if (whileLineStayUp(line, LINE_TIMEOUT) == LINE_TIMEOUT) {
         res = DS_ANS_FAIL;
         goto error;
     }
+    __enable_interrupt();
     sDelay(500);
+    __disable_interrupt();
     releaseLine(line);
     line->setUpTime = whileLineStayHold(line, LINE_TIMEOUT);
     if (line->setUpTime == LINE_TIMEOUT){
@@ -101,8 +104,8 @@ static dsResult_t startLine (lineOptions_t *line)
         res = DS_ANS_SHORTCUT;
         goto error;
     }
-    
   error:
+    __enable_interrupt();
     releaseLine(line);
     sDelay(500);
     return res;
@@ -147,6 +150,7 @@ static int getBit (lineOptions_t *line)
 
 static void sendByte (lineOptions_t *line, int val)
 {
+    __disable_interrupt();
     sendBit(line, val & 0x01);
 	sendBit(line, val & 0x02);
 	sendBit(line, val & 0x04);
@@ -155,6 +159,7 @@ static void sendByte (lineOptions_t *line, int val)
 	sendBit(line, val & 0x20);
 	sendBit(line, val & 0x40);
 	sendBit(line, val & 0x80);
+    __enable_interrupt();
 }
 //-----------------------------------------------------------------------------
 
@@ -162,6 +167,7 @@ static int getByte(lineOptions_t *line)
 {
 	unsigned char res = 0;
 	
+    __disable_interrupt();
 	if(getBit(line)) {
 		res |= 0x01;
     }
@@ -186,6 +192,7 @@ static int getByte(lineOptions_t *line)
 	if(getBit(line)) {
 		res |= 0x80;
     }
+    __enable_interrupt();
 	return res;
 }
 //-----------------------------------------------------------------------------
@@ -239,8 +246,8 @@ dsResult_t dsGetID (lineOptions_t *line, unsigned char *val)
     taskENTER_CRITICAL();
     if ((res = startLine(line)) == DS_ANS_OK) {
         sendByte(line, DS_ROM_READ);    
-    	readBuf(line, val, 8);
-	    if (dallasCRC8(val, 8) != 0) {
+    	readBuf(line, val, ROM_ID_SIZE);
+	    if (dallasCRC8(val, ROM_ID_SIZE) != 0) {
             res = DS_ANS_CRC;
         }
     }
@@ -263,7 +270,7 @@ dsResult_t dsConvertStart   (lineOptions_t *line)
 }
 //-----------------------------------------------------------------------------
 
-dsResult_t dsRefreshTemperature (lineOptions_t *line, sensorOptions_t *sensor)
+dsResult_t dsReadTemperature (lineOptions_t *line, sensorOptions_t *sensor)
 {
     dsResult_t res;
     unsigned char scratchpad[9] = {0,0,0,0,0,0,0,0,0};
@@ -271,7 +278,7 @@ dsResult_t dsRefreshTemperature (lineOptions_t *line, sensorOptions_t *sensor)
     taskENTER_CRITICAL();
     if ((res = startLine(line)) == DS_ANS_OK) {
         sendByte(line, DS_ROM_MATCH);
-        writeBuf(line, sensor->id, ID_SIZE);
+        writeBuf(line, sensor->id, ROM_ID_SIZE);
         sendByte(line, DS_SRC_READ);
         readBuf(line, scratchpad, sizeof(scratchpad));
         if (scratchpad[6] == 0xFF && scratchpad[7] == 0xFF) { // mast be 0x0C and 0x10 
@@ -293,11 +300,122 @@ dsResult_t dsRefreshTemperature (lineOptions_t *line, sensorOptions_t *sensor)
 }
 //-----------------------------------------------------------------------------
 
-dsResult_t dsFindAllId      (lineOptions_t *line)
+int dsSearch(lineOptions_t *line, unsigned char rom[ROM_ID_SIZE])
 {
-    
+    dsResult_t res = DS_ANS_NOANS;
+    int id_bit_number = 1;
+    int last_zero = 0, rom_byte_number = 0;
+    int id_bit, cmp_id_bit;
+    unsigned char crc8 = 0, rom_byte_mask = 1, search_direction;
+
+    //memset((void*)rom, 0, ROM_ID_SIZE);
+    // if the last call was not the last one
+    // 1-Wire reset
+    if ((res = startLine(line)) != DS_ANS_OK) {
+        return res;
+    }
+    // issue the search command 
+    sendByte(line, DS_ROM_SEARCH);
+    // loop to do the search
+    do
+    {
+        // read a bit and its complement
+        __disable_interrupt();
+        id_bit = getBit(line);
+        cmp_id_bit = getBit(line);
+        __enable_interrupt();
+        // check for no devices on 1-wire
+        if ((id_bit == 1) && (cmp_id_bit == 1)) {
+            break;
+        } else {
+            // all devices coupled have 0 or 1
+            if (id_bit != cmp_id_bit) {
+                search_direction = id_bit;  // bit write value for search
+            } else {
+               // if this discrepancy if before the Last Discrepancy
+               // on a previous next then pick the same as last time
+                if (id_bit_number < line->lastDiscrepancy) {
+                    search_direction = ((rom[rom_byte_number] & rom_byte_mask) != 0);
+                } else {
+                    // if equal to last pick 1, if not then pick 0
+                    search_direction = (id_bit_number == line->lastDiscrepancy);
+                }
+                // if 0 was picked then record its position in LastZero
+                if (search_direction == 0) {
+                    last_zero = id_bit_number;
+                    // check for Last discrepancy in family
+                }
+            }
+            // set or clear the bit in the ROM byte rom_byte_number
+            // with mask rom_byte_mask
+            if (search_direction == 1) {
+                rom[rom_byte_number] |= rom_byte_mask;
+            } else {
+                rom[rom_byte_number] &= ~rom_byte_mask;
+            }
+            // serial number search direction write bit
+            __disable_interrupt();
+            sendBit(line, search_direction);
+            __enable_interrupt();
+            // increment the byte counter id_bit_number
+            // and shift the mask rom_byte_mask
+            id_bit_number++;
+            rom_byte_mask <<= 1;
+
+            // if the mask is 0 then go to new SerialNum byte rom_byte_number and reset mask
+            if (rom_byte_mask == 0) {
+                rom_byte_number++;
+                rom_byte_mask = 1;
+            }
+        }
+    } while(rom_byte_number < ROM_ID_SIZE);  // loop until through all ROM bytes 0-7
+
+    // if the search was successful then
+    if (!((id_bit_number < 65) || dallasCRC8(rom, ROM_ID_SIZE))) {
+        // search successful so set LastDiscrepancy,LastDeviceFlag,search_result
+        line->lastDiscrepancy = last_zero;
+        // check for last device
+        if (line->lastDiscrepancy == 0) {
+            res = DS_ANS_DISABLED;
+        } else {
+            res = DS_ANS_OK;
+        }
+    }
+
+   // if no device found then reset counters so next 'search' will be like a first
+   if (res != DS_ANS_OK || !rom[0]) {
+      line->lastDiscrepancy = 0;
+   }  
+   return res;
 }
 //-----------------------------------------------------------------------------
+
+dsResult_t dsFindAllId (lineOptions_t *line)
+{
+    unsigned char rom[ROM_ID_SIZE];
+    dsResult_t res;
+    
+    taskENTER_CRITICAL();
+    line->sensorsCount = 0;
+    for (int i = 0; i < SENSORS_PER_LINE_MAXCOUNT; i++) {
+        res = dsSearch(line, rom);
+        switch(res) {
+          case DS_ANS_DISABLED:
+            line->sensorsCount = i;
+            i = SENSORS_PER_LINE_MAXCOUNT;
+            break;
+          case DS_ANS_OK:
+            memcpy((void*)line->sensor[i].id, (void*)rom, ROM_ID_SIZE);
+            break;
+          default:
+            i = SENSORS_PER_LINE_MAXCOUNT;            
+        }
+    }
+    taskEXIT_CRITICAL();
+    return res;
+}
+//-----------------------------------------------------------------------------
+
 
 
 /*

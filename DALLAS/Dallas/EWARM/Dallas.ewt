@@ -1281,6 +1281,12 @@
       <name>$PROJ_DIR$\..\Src\Dallas.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\Src\Modbus.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\Src\software_I2C.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\Src\TaskMain.c</name>
     </file>
   </group>

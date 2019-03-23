@@ -9,7 +9,7 @@
 //Internal function----------------------------
 #define SENSORS_PER_LINE_MAXCOUNT   60
 #define LINE_TIMEOUT                1000   // in microseconds
-#define ID_SIZE                     8
+#define ROM_ID_SIZE                     8
 #define TIME_FOR_CONVERTATION       750
 
 typedef enum
@@ -42,7 +42,7 @@ typedef enum
 typedef struct
 {
     unsigned char num; 
-    unsigned char id[ID_SIZE];
+    unsigned char id[ROM_ID_SIZE];
     signed short currentTemperature;
 } sensorOptions_t;
 
@@ -54,10 +54,11 @@ typedef struct
     unsigned int ioPin;
     GPIO_TypeDef *ioPort;
     dsResult_t lastResult;    
+    int lastDiscrepancy;
 } lineOptions_t;
 
 dsResult_t dsGetID          (lineOptions_t *line, unsigned char *val);
-dsResult_t dsRefreshTemperature (lineOptions_t *line, sensorOptions_t *sensor);
+dsResult_t dsReadTemperature (lineOptions_t *line, sensorOptions_t *sensor);
 dsResult_t dsConvertStart   (lineOptions_t *line);
 dsResult_t dsFindAllId      (lineOptions_t *line);
 
