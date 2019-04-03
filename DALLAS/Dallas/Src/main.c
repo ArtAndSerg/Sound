@@ -52,7 +52,6 @@
 #include "cmsis_os.h"
 
 /* USER CODE BEGIN Includes */
-#include "TaskMain.h"
 #include "modbus.h"
 extern modbus_t modbus;      
 
@@ -65,8 +64,10 @@ UART_HandleTypeDef huart1;
 DMA_HandleTypeDef hdma_usart1_rx;
 DMA_HandleTypeDef hdma_usart1_tx;
 
-osThreadId defaultTaskHandle;
+osThreadId mainTaskHandle;
+osThreadId pollingTaskHandle;
 osSemaphoreId mbBinarySemHandle;
+osSemaphoreId senorsSemHandle;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -80,6 +81,7 @@ static void MX_DMA_Init(void);
 static void MX_IWDG_Init(void);
 static void MX_USART1_UART_Init(void);
 void StartDefaultTask(void const * argument);
+void StartTask02(void const * argument);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -135,6 +137,10 @@ int main(void)
   osSemaphoreDef(mbBinarySem);
   mbBinarySemHandle = osSemaphoreCreate(osSemaphore(mbBinarySem), 1);
 
+  /* definition and creation of senorsSem */
+  osSemaphoreDef(senorsSem);
+  senorsSemHandle = osSemaphoreCreate(osSemaphore(senorsSem), 1);
+
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
@@ -144,9 +150,13 @@ int main(void)
   /* USER CODE END RTOS_TIMERS */
 
   /* Create the thread(s) */
-  /* definition and creation of defaultTask */
-  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 512);
-  defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
+  /* definition and creation of mainTask */
+  osThreadDef(mainTask, StartDefaultTask, osPriorityNormal, 0, 128);
+  mainTaskHandle = osThreadCreate(osThread(mainTask), NULL);
+
+  /* definition and creation of pollingTask */
+  osThreadDef(pollingTask, StartTask02, osPriorityIdle, 0, 128);
+  pollingTaskHandle = osThreadCreate(osThread(pollingTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -246,7 +256,7 @@ static void MX_USART1_UART_Init(void)
 {
 
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 9600;
+  huart1.Init.BaudRate = 115200;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
@@ -303,12 +313,9 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOA, LED2_Pin|U12_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, U7_Pin|U13_Pin|U14_Pin|U11_Pin 
-                          |U10_Pin|SCL_Pin|SDA_Pin|U6_Pin 
-                          |U5_Pin, GPIO_PIN_SET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, U8_Pin|U9_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, U7_Pin|U8_Pin|U13_Pin|U14_Pin 
+                          |U11_Pin|U10_Pin|U9_Pin|SCL_Pin 
+                          |SDA_Pin|U6_Pin|U5_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(RE_DE_GPIO_Port, RE_DE_Pin, GPIO_PIN_RESET);
@@ -327,22 +334,15 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LED2_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : U7_Pin U13_Pin U14_Pin U11_Pin 
-                           U10_Pin SCL_Pin SDA_Pin U6_Pin 
-                           U5_Pin */
-  GPIO_InitStruct.Pin = U7_Pin|U13_Pin|U14_Pin|U11_Pin 
-                          |U10_Pin|SCL_Pin|SDA_Pin|U6_Pin 
-                          |U5_Pin;
+  /*Configure GPIO pins : U7_Pin U8_Pin U13_Pin U14_Pin 
+                           U11_Pin U10_Pin U9_Pin SCL_Pin 
+                           SDA_Pin U6_Pin U5_Pin */
+  GPIO_InitStruct.Pin = U7_Pin|U8_Pin|U13_Pin|U14_Pin 
+                          |U11_Pin|U10_Pin|U9_Pin|SCL_Pin 
+                          |SDA_Pin|U6_Pin|U5_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : U8_Pin U9_Pin */
-  GPIO_InitStruct.Pin = U8_Pin|U9_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : RE_DE_Pin */
@@ -371,7 +371,6 @@ void StartDefaultTask(void const * argument)
 
   /* USER CODE BEGIN 5 */
    initTaskMain();
-
   /* Infinite loop */
   for(;;)
   {
@@ -379,6 +378,20 @@ void StartDefaultTask(void const * argument)
     osDelay(1);
   }
   /* USER CODE END 5 */ 
+}
+
+/* StartTask02 function */
+void StartTask02(void const * argument)
+{
+  /* USER CODE BEGIN StartTask02 */
+  initTaskPolling();
+    /* Infinite loop */
+  for(;;)
+  {
+      processTaskPolling();
+      osDelay(1);
+  }
+  /* USER CODE END StartTask02 */
 }
 
 /**

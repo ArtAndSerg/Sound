@@ -14,6 +14,8 @@
 typedef enum {
     MB_OK = 0,
     MB_TIMEOUT,
+    MB_TX_FINISH,
+    MB_RX_DONE,
     MB_ERR_FRAME,
     MB_ERR_OVERFLOW,
     MB_ERR_CRC,
@@ -32,12 +34,13 @@ typedef struct {
 } modbus_t;
 
 void modbusSetTxMode(bool txMode);          // Set RE/DE pin of MAX485 or similar IC, if needed.
-void modbusInterruptUart(modbus_t *mb);     // Must be BEFOR(!) "HAL_UART_IRQHandler(&huart1);" in file "stm32...xx_it.c"
+void modbusBefore_HAL_UART_IRQHandler(modbus_t *mb);  // Must be BEFOR(!) "HAL_UART_IRQHandler(&huart1);" in file "stm32...xx_it.c"
+void modbusAfter_HAL_UART_IRQHandler(modbus_t *mb);   // Must be AFTER(!) "HAL_UART_IRQHandler(&huart1);" in file "stm32...xx_it.c"
 
 bool modbusInit(modbus_t *mb, uint8_t addr, uint32_t baudRate);
 void modbusReceiveStart(modbus_t *mb);
 modbusResult_t modbusDataWait(modbus_t *mb, uint32_t timeout);
 void modbusSend(modbus_t *mb, uint8_t *buf, uint32_t len);
-
+unsigned short modbusCrc16(unsigned char* data, unsigned char length);
 #endif
 

@@ -54,6 +54,13 @@
 /* Includes ------------------------------------------------------------------*/
 
 /* USER CODE BEGIN Includes */
+#define LINES_MAXCOUNT 10
+#define PORT_EXPANDER_BASE_ARRR 0x70
+            
+void initTaskMain(void);
+void processTaskMain(void);
+void initTaskPolling(void);
+void processTaskPolling(void);
 
 /* USER CODE END Includes */
 

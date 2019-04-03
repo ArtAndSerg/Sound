@@ -7,18 +7,18 @@
 #include "stm32f1xx_hal.h"
 #include "cmsis_os.h"
 #include "dallas.h"
-#include "TaskMain.h"
 #include "software_I2C.h"
 #include "modbus.h"
 
 extern IWDG_HandleTypeDef hiwdg;
-extern TIM_HandleTypeDef htim3;
 extern UART_HandleTypeDef huart1;
 extern osSemaphoreId mbBinarySemHandle;
+extern osSemaphoreId senorsSemHandle;
+extern lineOptions_t lines[LINES_MAXCOUNT];
 
-lineOptions_t lines[LINES_MAXCOUNT];
 modbus_t modbus;
-uint8_t txBuf[62];
+uint16_t temperatureBuf[LINES_MAXCOUNT][SENSORS_PER_LINE_MAXCOUNT];
+uint8_t modbusBuf[SENSORS_PER_LINE_MAXCOUNT * sizeof(uint16_t) + 10];
 
 static uint8_t getJumpers(void);
 
@@ -30,78 +30,98 @@ void modbusSetTxMode(bool txMode)          // Set RE/DE pin of MAX485 or similar
         HAL_GPIO_WritePin(RE_DE_GPIO_Port, RE_DE_Pin, GPIO_PIN_RESET);
     }
 }
+//-----------------------------------------------------------------------------
 
 void initTaskMain(void)
 {
+    int addr;
+    
     modbus.dataRxSemHandle = mbBinarySemHandle;
     modbus.huart = &huart1;
-    HAL_HalfDuplex_EnableReceiver(&huart1);
+    addr = getJumpers();
+    for (int i = 0; i < 10; i++) {
+        osDelay(50);
+        if (getJumpers() != addr) {
+            HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+            HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
+            osDelay(50);
+            NVIC_SystemReset();
+        }
+    }
+    memset((void*)temperatureBuf, 0, sizeof(temperatureBuf));
     if (!modbusInit(&modbus, getJumpers(), 9600)) {
         while(1);
     }
     modbusReceiveStart(&modbus);
-    
-    memset((void*)lines, 0, sizeof(lines));
-    memset((void*)lines, 0, sizeof(lines));
-    
-    lines[0].ioPin = U5_Pin;
-    lines[0].ioPort = U5_GPIO_Port;
-
-    lines[1].ioPin = U6_Pin;
-    lines[1].ioPort = U6_GPIO_Port;
-    
-    lines[2].ioPin = U7_Pin;
-    lines[2].ioPort = U7_GPIO_Port;
-    
-    lines[3].ioPin = U8_Pin;
-    lines[3].ioPort = U8_GPIO_Port;
-    
-    lines[4].ioPin = U9_Pin;
-    lines[4].ioPort = U9_GPIO_Port;
-    
-    lines[5].ioPin = U10_Pin;
-    lines[5].ioPort = U10_GPIO_Port;
-    
-    lines[6].ioPin = U11_Pin;
-    lines[6].ioPort = U11_GPIO_Port;
-    
-    lines[7].ioPin = U12_Pin;
-    lines[7].ioPort = U12_GPIO_Port;
-    
-    lines[8].ioPin = U13_Pin;
-    lines[8].ioPort = U13_GPIO_Port;
-    
-    lines[9].ioPin = U14_Pin;
-    lines[9].ioPort = U14_GPIO_Port;
-    
-    for (int i = 0; i < LINES_MAXCOUNT; i++) {
-        lines[i].sensorsCount = SENSORS_PER_LINE_MAXCOUNT;
-    }
 }
 //-----------------------------------------------------------------------------
 
 void processTaskMain(void)
 {
-    static  uint8_t id[8];
-    dsResult_t res;
-    static uint32_t timer, t, addr;
+    int txLen = 0, baseNum, count;
+    uint16_t crc;
+    static int currLine = 0;
+    modbusResult_t mbRes;
     
-    HAL_IWDG_Refresh(&hiwdg);
-    timer = HAL_GetTick();
-    res = dsFindAllId(&lines[0]);
-    t = HAL_GetTick() - timer;
-    //res = dsGetID(&lines[0], lines[0].sensor[0].id);
-    dsConvertStart(&lines[0]);
-    osDelay(TIME_FOR_CONVERTATION);
-    timer = HAL_GetTick();
-    for (int i = 0; i < lines[0].sensorsCount; i++) {
-        lines[0].lastResult = dsReadTemperature(&lines[0], &lines[0].sensor[i]);
-        if (lines[0].lastResult != DS_ANS_OK) {
-            break;
-        }
+ // 01 03 00 00 00 02 C4 0B
+ // 0  1  2  3  4  5  6  7   
+    
+    HAL_IWDG_Refresh(&hiwdg); 
+    HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
+    mbRes = modbusDataWait(&modbus, 1000);
+    if (mbRes == MB_OK) {
+        HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);        
+        if (modbus.rxBuf[1] == 6) { // write command
+            if (modbus.rxBuf[3] == 0) { // register
+                if (modbus.rxBuf[5] < LINES_MAXCOUNT) {
+                    currLine = modbus.rxBuf[5] + 1; 
+                } else {
+                    currLine = 0;
+                }
+            }
+            if (modbus.rxBuf[3] == 1 && modbus.rxBuf[5] == 0) {  // stop
+                currLine = 0;
+            }
+            memcpy((void*)modbusBuf, modbus.rxBuf, 8);              
+            txLen = 8;
+        } else if (modbus.rxBuf[1] == 3) { //read
+            modbusBuf[txLen++] = modbus.addr;
+            modbusBuf[txLen++] = 3;
+            if (modbus.rxBuf[3] == 0) { // register
+                modbusBuf[txLen++] = 4;  // bytes count
+                modbusBuf[txLen++] = 0;  // data...
+                modbusBuf[txLen++] = 0;
+                modbusBuf[txLen++] = 0;
+                modbusBuf[txLen++] = 2;
+            } else {
+                baseNum = modbus.rxBuf[3] - 2;
+                count = modbus.rxBuf[5];
+                //count = SENSORS_PER_LINE_MAXCOUNT;
+                if (count > SENSORS_PER_LINE_MAXCOUNT) {
+                    count = SENSORS_PER_LINE_MAXCOUNT;
+                }
+                if (currLine) {
+                    modbusBuf[txLen++] = count * sizeof(uint16_t);  // bytes count
+                    osSemaphoreWait(senorsSemHandle, osWaitForever);
+                    for (int i = baseNum; i < baseNum + count; i++) {
+                        modbusBuf[txLen++] = temperatureBuf[currLine - 1][i] >> 8;
+                        modbusBuf[txLen++] = temperatureBuf[currLine - 1][i] & 0xFF;        
+                    }
+                    osSemaphoreRelease(senorsSemHandle);
+                }
+            }
+            crc = modbusCrc16(modbusBuf, txLen);
+            modbusBuf[txLen++] = crc & 0xFF;
+            modbusBuf[txLen++] = crc >> 8;
+        }            
+        modbusSend(&modbus, modbusBuf, txLen);
+        modbusDataWait(&modbus, osWaitForever);
+       
+    } else if (mbRes != MB_TIMEOUT) {
+        modbusReceiveStart(&modbus);
     }
-    t = HAL_GetTick() - timer;
     
+    /*
     
     switch (modbusDataWait(&modbus, 3000)){
       case MB_ERR_CRC:
@@ -125,9 +145,9 @@ void processTaskMain(void)
       case MB_TIMEOUT:
         return;
     }
-    modbusDataWait(&modbus, 1000);
-    modbusReceiveStart(&modbus);
-    //osDelay(3000);
+    modbusDataWait(&modbus, 500);
+    //modbusReceiveStart(&modbus);
+    //osDelay(3000);*/
 }
 //-----------------------------------------------------------------------------
 

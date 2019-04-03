@@ -1,4 +1,5 @@
 
+#include <string.h>
 #include "Dallas.h"
 #include "main.h"
 #include "cmsis_os.h"
@@ -71,8 +72,11 @@ static dsResult_t startLine (lineOptions_t *line)
 {
     dsResult_t res = DS_ANS_OK; 
     
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->CYCCNT = 0;
+    DWT->CTRL |= 1;
     DWT->CTRL |= (DWT_CTRL_EXCTRCENA_Msk | DWT_CTRL_CYCCNTENA_Msk);
-       
+    
     if (!getLine(line)) {
         releaseLine(line);
         if (whileLineStayHold(line, LINE_TIMEOUT) == LINE_TIMEOUT) {
@@ -166,7 +170,6 @@ static void sendByte (lineOptions_t *line, int val)
 static int getByte(lineOptions_t *line)
 {
 	unsigned char res = 0;
-	
     __disable_interrupt();
 	if(getBit(line)) {
 		res |= 0x01;
@@ -243,7 +246,6 @@ dsResult_t dsGetID (lineOptions_t *line, unsigned char *val)
 {
     dsResult_t res;
 	
-    taskENTER_CRITICAL();
     if ((res = startLine(line)) == DS_ANS_OK) {
         sendByte(line, DS_ROM_READ);    
     	readBuf(line, val, ROM_ID_SIZE);
@@ -251,7 +253,6 @@ dsResult_t dsGetID (lineOptions_t *line, unsigned char *val)
             res = DS_ANS_CRC;
         }
     }
-    taskEXIT_CRITICAL();     
 	return res;
 }
 //-----------------------------------------------------------------------------
@@ -260,12 +261,10 @@ dsResult_t dsConvertStart   (lineOptions_t *line)
 {
     dsResult_t res;
     
-    taskENTER_CRITICAL();
     if ((res = startLine(line)) == DS_ANS_OK) {
         sendByte(line, DS_ROM_SKIP);
         sendByte(line, DS_SRC_CONVERT);
     }
-    taskEXIT_CRITICAL();     
 	return res;
 }
 //-----------------------------------------------------------------------------
@@ -274,8 +273,8 @@ dsResult_t dsReadTemperature (lineOptions_t *line, sensorOptions_t *sensor)
 {
     dsResult_t res;
     unsigned char scratchpad[9] = {0,0,0,0,0,0,0,0,0};
+    int tmp;
     
-    taskENTER_CRITICAL();
     if ((res = startLine(line)) == DS_ANS_OK) {
         sendByte(line, DS_ROM_MATCH);
         writeBuf(line, sensor->id, ROM_ID_SIZE);
@@ -287,26 +286,25 @@ dsResult_t dsReadTemperature (lineOptions_t *line, sensorOptions_t *sensor)
             if (dallasCRC8(scratchpad, 9) != 0) {
                 res = DS_ANS_CRC;
             } else {
-                sensor->currentTemperature = scratchpad[1];
-                sensor->currentTemperature = sensor->currentTemperature << 8;
-                sensor->currentTemperature |= scratchpad[0];
-                sensor->currentTemperature *= 10;
-                sensor->currentTemperature /= 16;
+                tmp = scratchpad[1];
+                tmp = (tmp << 8) | scratchpad[0];
+                tmp *= 100;
+                sensor->currentTemperature = tmp / 16;
+                sensor->num = scratchpad[3];
             }
         }
     }
-    taskEXIT_CRITICAL();     
 	return res;
 }
 //-----------------------------------------------------------------------------
 
-int dsSearch(lineOptions_t *line, unsigned char rom[ROM_ID_SIZE])
+dsResult_t dsSearch(lineOptions_t *line, unsigned char rom[ROM_ID_SIZE])
 {
     dsResult_t res = DS_ANS_NOANS;
     int id_bit_number = 1;
     int last_zero = 0, rom_byte_number = 0;
     int id_bit, cmp_id_bit;
-    unsigned char crc8 = 0, rom_byte_mask = 1, search_direction;
+    unsigned char rom_byte_mask = 1, search_direction;
 
     //memset((void*)rom, 0, ROM_ID_SIZE);
     // if the last call was not the last one
@@ -394,24 +392,24 @@ dsResult_t dsFindAllId (lineOptions_t *line)
 {
     unsigned char rom[ROM_ID_SIZE];
     dsResult_t res;
-    
-    taskENTER_CRITICAL();
-    line->sensorsCount = 0;
+
+    line->lastDiscrepancy = 0;
     for (int i = 0; i < SENSORS_PER_LINE_MAXCOUNT; i++) {
         res = dsSearch(line, rom);
         switch(res) {
           case DS_ANS_DISABLED:
             line->sensorsCount = i;
             i = SENSORS_PER_LINE_MAXCOUNT;
+            res = DS_ANS_OK;
             break;
           case DS_ANS_OK:
             memcpy((void*)line->sensor[i].id, (void*)rom, ROM_ID_SIZE);
             break;
           default:
-            i = SENSORS_PER_LINE_MAXCOUNT;            
+            i = SENSORS_PER_LINE_MAXCOUNT;   
+            line->sensorsCount = 0;
         }
     }
-    taskEXIT_CRITICAL();
     return res;
 }
 //-----------------------------------------------------------------------------

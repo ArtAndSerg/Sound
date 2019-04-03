@@ -1289,6 +1289,9 @@
     <file>
       <name>$PROJ_DIR$\..\Src\TaskMain.c</name>
     </file>
+    <file>
+      <name>$PROJ_DIR$\..\Src\TaskPolling.c</name>
+    </file>
   </group>
 </project>
 
