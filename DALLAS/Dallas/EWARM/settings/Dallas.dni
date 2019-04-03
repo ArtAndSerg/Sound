@@ -4,7 +4,7 @@ stlinkfoundProbes=
 CStepIntDis=_ 0
 LeaveTargetRunning=_ 0
 [DebugChecksum]
-Checksum=31175339
+Checksum=-1939065894
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -48,16 +48,6 @@ Fmt2=modbus_t-rxLen	3	0
 Fmt3=sensorOptions_t-num	3	0
 [watch_formats]
 Fmt0={W}42:addr	4	0
-[DriverProfiling]
-Enabled=0
-Mode=3
-Graph=0
-Symbiont=0
-Exclusions=
-[CallStackLog]
-Enabled=0
-[CallStackStripe]
-ShowTiming=0
 [Trace2]
 Enabled=0
 ShowSource=0
@@ -105,6 +95,16 @@ Category=_ 0
 [TermIOLog]
 LoggingEnabled=_ 0
 LogFile=_ ""
+[DriverProfiling]
+Enabled=0
+Mode=3
+Graph=0
+Symbiont=0
+Exclusions=
+[CallStackLog]
+Enabled=0
+[CallStackStripe]
+ShowTiming=0
 [Disassemble mode]
 mode=0
 [Breakpoints2]

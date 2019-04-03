@@ -55,7 +55,9 @@
 
 /* USER CODE BEGIN Includes */
 #define LINES_MAXCOUNT 10
-#define PORT_EXPANDER_BASE_ARRR 0x70
+#define PCF8574A_BASE_ARRR 0x70
+#define PCF8574_BASE_ARRR 0x40
+      
             
 void initTaskMain(void);
 void processTaskMain(void);

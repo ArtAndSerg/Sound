@@ -34,22 +34,22 @@ void modbusSetTxMode(bool txMode)          // Set RE/DE pin of MAX485 or similar
 
 void initTaskMain(void)
 {
-    int addr;
-    
+    uint8_t addr;
+   
     modbus.dataRxSemHandle = mbBinarySemHandle;
     modbus.huart = &huart1;
+    HAL_IWDG_Refresh(&hiwdg); 
+    osDelay(200);
     addr = getJumpers();
-    for (int i = 0; i < 10; i++) {
+    if (!addr) {
+        HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+        HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
         osDelay(50);
-        if (getJumpers() != addr) {
-            HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
-            HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
-            osDelay(50);
-            NVIC_SystemReset();
-        }
+        NVIC_SystemReset();
     }
+    addr = 255 - addr;
     memset((void*)temperatureBuf, 0, sizeof(temperatureBuf));
-    if (!modbusInit(&modbus, getJumpers(), 9600)) {
+    if (!modbusInit(&modbus, addr, 9600)) {
         while(1);
     }
     modbusReceiveStart(&modbus);
@@ -71,6 +71,7 @@ void processTaskMain(void)
     mbRes = modbusDataWait(&modbus, 1000);
     if (mbRes == MB_OK) {
         HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);        
+        modbusBuf[txLen++] = modbus.addr;
         if (modbus.rxBuf[1] == 6) { // write command
             if (modbus.rxBuf[3] == 0) { // register
                 if (modbus.rxBuf[5] < LINES_MAXCOUNT) {
@@ -82,10 +83,9 @@ void processTaskMain(void)
             if (modbus.rxBuf[3] == 1 && modbus.rxBuf[5] == 0) {  // stop
                 currLine = 0;
             }
-            memcpy((void*)modbusBuf, modbus.rxBuf, 8);              
-            txLen = 8;
+            memcpy((void*)&modbusBuf[1], &modbus.rxBuf[1], 7);              
+            txLen += 7;
         } else if (modbus.rxBuf[1] == 3) { //read
-            modbusBuf[txLen++] = modbus.addr;
             modbusBuf[txLen++] = 3;
             if (modbus.rxBuf[3] == 0) { // register
                 modbusBuf[txLen++] = 4;  // bytes count
@@ -153,12 +153,34 @@ void processTaskMain(void)
 
 static uint8_t getJumpers(void)
 {
-    uint8_t res = 0, tmp;  
-      
-    if (i2cReadDirectly(PORT_EXPANDER_BASE_ARRR, &tmp, 1)) {
+    uint8_t res = 0, val, valPrev;  
+    static uint8_t i2cAddr = 0;  
+    
+    if (!i2cAddr) {
         for (int i = 0; i < 8; i++) {
-            res = res << 1;          
-            res |= !(tmp & (0x01 << i));
+            i2cAddr = PCF8574_BASE_ARRR | i;
+            if (i2cReadDirectly(i2cAddr, &val, 1)) {
+                break;
+            }
+            i2cAddr = PCF8574A_BASE_ARRR | i;
+            if (i2cReadDirectly(i2cAddr, &val, 1)) {
+                break;
+            }
+        }
+    }
+    osDelay(10);
+    if (i2cReadDirectly(i2cAddr, &val, 1)) {
+        osDelay(10);
+        if (i2cReadDirectly(i2cAddr, &valPrev, 1)) {
+            if (val == valPrev) {
+                res = val;
+                /*
+                for (int i = 0; i < 8; i++) {
+                    res = res << 1;          
+                    res |= !(val & (0x01 << i));
+                }
+                */
+            }
         }
     }    
     return res;

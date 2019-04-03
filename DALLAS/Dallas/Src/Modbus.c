@@ -6,7 +6,12 @@
 bool modbusInit(modbus_t *mb, uint8_t addr, uint32_t baudRate)
 {
     mb->lastResult = MB_ERR_INIT;
+    /*
     if (mb == NULL || addr == 0 || addr > 247 || !IS_UART_BAUDRATE(baudRate)) {   // Modbus address of the device it is intended for (1 to 247).
+        return false;
+    }
+    */
+    if (mb == NULL || addr == 0 || addr == 255 || !IS_UART_BAUDRATE(baudRate)) {   // Modbus address of the device it is intended for (1 to 247).
         return false;
     }
     osSemaphoreWait(mb->dataRxSemHandle, 0); 
@@ -46,7 +51,7 @@ void modbusAfter_HAL_UART_IRQHandler(modbus_t *mb)
         } 
         mb->rxLen = mb->huart->RxXferSize - mb->huart->hdmarx->Instance->CNDTR;
         HAL_UART_Abort(mb->huart);
-        if (mb->rxBuf[0] == mb->addr) {
+        if (mb->rxBuf[0] == mb->addr || !mb->rxBuf[0]) {  // !mb->rxBuf[0] - broadcast.
             if (modbusCrc16(mb->rxBuf, mb->rxLen) == 0x0000) {
                 mb->lastResult = MB_OK;
             } else if (mb->lastResult == MB_RX_DONE) { 
@@ -94,9 +99,10 @@ modbusResult_t modbusDataWait(modbus_t *mb, uint32_t timeout)
 
 void modbusSend(modbus_t *mb, uint8_t *buf, uint32_t len)
 {
+    osDelay(50);
     osSemaphoreWait(mb->dataRxSemHandle, 0);
     HAL_HalfDuplex_EnableTransmitter(mb->huart);
-    osDelay(1);
+    osDelay(50);
     modbusSetTxMode(true);
     mb->lastResult = MB_OK;
     if (HAL_UART_Transmit_DMA(mb->huart, buf, len) != HAL_OK) {
