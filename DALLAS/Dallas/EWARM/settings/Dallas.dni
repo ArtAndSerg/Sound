@@ -4,7 +4,7 @@ stlinkfoundProbes=
 CStepIntDis=_ 0
 LeaveTargetRunning=_ 0
 [DebugChecksum]
-Checksum=-1939065894
+Checksum=-42419145
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -44,10 +44,15 @@ ITMlogFile=$PROJ_DIR$\ITM.log
 [struct_types]
 Fmt0=USART_TypeDef-CR1	4	0
 Fmt1=USART_TypeDef-SR	4	0
-Fmt2=modbus_t-rxLen	3	0
-Fmt3=sensorOptions_t-num	3	0
+Fmt2=modbus_t-addr	1	0
+Fmt3=modbus_t-rxLen	3	0
+Fmt4=sensorOptions_t-currentTemperature	3	0
+Fmt5=sensorOptions_t-num	3	0
+[array_types]
+Fmt0=uint8_t[130]	4	0
 [watch_formats]
 Fmt0={W}42:addr	4	0
+Fmt1={W}42:address	1	0
 [Trace2]
 Enabled=0
 ShowSource=0
@@ -109,7 +114,8 @@ ShowTiming=0
 mode=0
 [Breakpoints2]
 Bp0=_ 0 "EMUL_CODE" "{$PROJ_DIR$\..\Src\stm32f1xx_it.c}.235.1" 0 0 1 "" 0 "" 0
-Count=1
+Bp1=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\Drivers\STM32F1xx_HAL_Driver\Src\stm32f1xx_hal_flash.c}.873.5" 0 0 1 "" 0 "" 0
+Count=2
 [Aliases]
 Count=0
 SuppressDialog=0

@@ -6,6 +6,7 @@
 #include "cmsis_os.h"
 #include "dallas.h"
 
+extern uint16_t savedSensNum[LINES_MAXCOUNT][SENSORS_PER_LINE_MAXCOUNT]; 
 extern uint16_t temperatureBuf[LINES_MAXCOUNT][SENSORS_PER_LINE_MAXCOUNT];
 lineOptions_t lines[LINES_MAXCOUNT];
 extern osSemaphoreId senorsSemHandle;
@@ -92,8 +93,10 @@ void processTaskPolling(void)
             temperatureBuf[i][j] = 9999;
         }
         for (int j = 0; j < SENSORS_PER_LINE_MAXCOUNT; j++) {
-            if (lines[i].sensor[j].num && lines[i].sensor[j].num <= SENSORS_PER_LINE_MAXCOUNT) {
-                temperatureBuf[i][lines[i].sensor[j].num - 1] = lines[i].sensor[j].currentTemperature; 
+            for (int k = 0; k < SENSORS_PER_LINE_MAXCOUNT; k++) {
+                if (lines[i].sensor[j].num && lines[i].sensor[j].num == savedSensNum[i][k]) {
+                    temperatureBuf[i][k] = lines[i].sensor[j].currentTemperature; 
+                }
             }
         }        
     }

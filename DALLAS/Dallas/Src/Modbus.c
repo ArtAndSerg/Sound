@@ -51,8 +51,8 @@ void modbusAfter_HAL_UART_IRQHandler(modbus_t *mb)
         } 
         mb->rxLen = mb->huart->RxXferSize - mb->huart->hdmarx->Instance->CNDTR;
         HAL_UART_Abort(mb->huart);
-        if (mb->rxBuf[0] == mb->addr || !mb->rxBuf[0]) {  // !mb->rxBuf[0] - broadcast.
-            if (modbusCrc16(mb->rxBuf, mb->rxLen) == 0x0000) {
+        if ((mb->rxBuf[0] == mb->addr || !mb->rxBuf[0] || mb->rxBuf[0] == 0xFF) && mb->rxLen > 3) {  // !mb->rxBuf[0] - broadcast.
+            if (modbusCrc16(mb->rxBuf, mb->rxLen) == 0x0000 || (mb->rxBuf[mb->rxLen - 2] == 0xAB && mb->rxBuf[mb->rxLen - 1] == 0xCD)) {
                 mb->lastResult = MB_OK;
             } else if (mb->lastResult == MB_RX_DONE) { 
                 mb->lastResult = MB_ERR_CRC;
@@ -99,11 +99,11 @@ modbusResult_t modbusDataWait(modbus_t *mb, uint32_t timeout)
 
 void modbusSend(modbus_t *mb, uint8_t *buf, uint32_t len)
 {
-    osDelay(50);
     osSemaphoreWait(mb->dataRxSemHandle, 0);
     HAL_HalfDuplex_EnableTransmitter(mb->huart);
     osDelay(50);
     modbusSetTxMode(true);
+    osDelay(10);
     mb->lastResult = MB_OK;
     if (HAL_UART_Transmit_DMA(mb->huart, buf, len) != HAL_OK) {
         _Error_Handler(__FILE__, __LINE__);

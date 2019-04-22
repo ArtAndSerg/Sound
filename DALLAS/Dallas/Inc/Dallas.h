@@ -9,18 +9,21 @@
 //Internal function----------------------------
 #define SENSORS_PER_LINE_MAXCOUNT   60
 #define LINE_TIMEOUT                1000   // in microseconds
-#define ROM_ID_SIZE                     8
+#define ROM_ID_SIZE                 8
 #define TIME_FOR_CONVERTATION       750
+#define SCRATCHPAD_SIZE             9
 
 typedef enum
 {
     DS_ANS_UNKNNOWN = 0,
     DS_ANS_OK,
-    DS_ANS_FAIL,
-    DS_ANS_SHORTCUT,
     DS_ANS_NOANS,
+    DS_ANS_SHORTCUT,
+    DS_ANS_FAIL,
     DS_ANS_CRC,
-    DS_ANS_DISABLED
+    DS_ANS_DISABLED,
+    DS_ANS_BAD_COUNT,
+    DS_ANS_BAD_SENSOR,
 } dsResult_t;
 
 //iButton commands-----------------------------
@@ -39,9 +42,14 @@ typedef enum
 #define DS_SRC_POWER	0xB4
 //---------------------------------------------
 
+#define DS_CONF_9_BITS   0x1F 
+#define DS_CONF_10_BITS  0x3F 
+#define DS_CONF_11_BITS  0x5F 
+#define DS_CONF_12_BITS  0x7F 
+
 typedef struct
 {
-    unsigned char num; 
+    unsigned short num; 
     unsigned char id[ROM_ID_SIZE];
     signed short currentTemperature;
 } sensorOptions_t;
@@ -57,9 +65,10 @@ typedef struct
     int lastDiscrepancy;
 } lineOptions_t;
 
-dsResult_t dsGetID          (lineOptions_t *line, unsigned char *val);
+dsResult_t dsGetID           (lineOptions_t *line, unsigned char *val);
 dsResult_t dsReadTemperature (lineOptions_t *line, sensorOptions_t *sensor);
-dsResult_t dsConvertStart   (lineOptions_t *line);
-dsResult_t dsFindAllId      (lineOptions_t *line);
+dsResult_t dsConvertStart    (lineOptions_t *line);
+dsResult_t dsFindAllId       (lineOptions_t *line);
+dsResult_t dsWriteNum        (lineOptions_t *line, uint8_t *id, uint16_t num);
 
 #endif

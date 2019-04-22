@@ -16,7 +16,7 @@ int i2cErrorCount = 0;
 
 static void soft_I2C_delay(void)
 {
-   for (volatile int i = 0; i < 10; i++);
+   for (volatile int i = 0; i < 100; i++);
 }
 //-----------------------------------------------------------------------------
 
@@ -92,8 +92,8 @@ static int soft_I2C_WaitAck(void)
     for (i = 0; i < 10 && SDA_read; i++) {
         soft_I2C_delay();
     }
-    SCL_L;
     soft_I2C_delay();
+    SCL_L;
     return (i != 10);
 }
 //-----------------------------------------------------------------------------
@@ -125,7 +125,6 @@ static uint8_t soft_I2C_ReceiveByte(void)
     uint8_t i = 8;
     uint8_t byte = 0;
 
-    SDA_H;
     while (i--) {
         byte <<= 1;
         SCL_L;
@@ -135,9 +134,9 @@ static uint8_t soft_I2C_ReceiveByte(void)
         if (SDA_read) {
             byte |= 0x01;
         }
+        soft_I2C_delay();
     }
     SCL_L;
-    soft_I2C_delay();
     return byte;
 }
 //-----------------------------------------------------------------------------
@@ -227,9 +226,11 @@ int i2cReadDirectly(uint8_t addr, uint8_t *buf, uint8_t len)
     
     if (buf == NULL) {
         return 0;
-    }
+    }    
     taskENTER_CRITICAL();
     if (!soft_I2C_Start()) {
+        soft_I2C_Stop();
+        soft_I2C_Stop();
         res = 0;
     }
     soft_I2C_SendByte(addr | 0x01);
@@ -239,7 +240,6 @@ int i2cReadDirectly(uint8_t addr, uint8_t *buf, uint8_t len)
         while (len--) {
             *(buf++) = soft_I2C_ReceiveByte();
             //soft_I2C_Ack();
-            
             if (!len) {
                 soft_I2C_NoAck();
             }

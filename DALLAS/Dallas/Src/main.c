@@ -371,6 +371,8 @@ void StartDefaultTask(void const * argument)
 
   /* USER CODE BEGIN 5 */
    initTaskMain();
+   initTaskPolling();
+   vTaskResume(pollingTaskHandle);  
   /* Infinite loop */
   for(;;)
   {
@@ -384,7 +386,7 @@ void StartDefaultTask(void const * argument)
 void StartTask02(void const * argument)
 {
   /* USER CODE BEGIN StartTask02 */
-  initTaskPolling();
+  vTaskSuspend(pollingTaskHandle);   
     /* Infinite loop */
   for(;;)
   {

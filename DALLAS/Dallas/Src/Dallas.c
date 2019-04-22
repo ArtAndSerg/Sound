@@ -112,6 +112,7 @@ static dsResult_t startLine (lineOptions_t *line)
     __enable_interrupt();
     releaseLine(line);
     sDelay(500);
+    line->lastResult = res;
     return res;
 }
 //-----------------------------------------------------------------------------
@@ -253,6 +254,7 @@ dsResult_t dsGetID (lineOptions_t *line, unsigned char *val)
             res = DS_ANS_CRC;
         }
     }
+    line->lastResult = res;
 	return res;
 }
 //-----------------------------------------------------------------------------
@@ -269,31 +271,74 @@ dsResult_t dsConvertStart   (lineOptions_t *line)
 }
 //-----------------------------------------------------------------------------
 
+dsResult_t dsReadScratchpad(lineOptions_t *line, uint8_t *id, uint8_t *scratchpad)
+{
+    dsResult_t res = DS_ANS_OK;
+    
+    memset(scratchpad, 0, SCRATCHPAD_SIZE);
+    if ((res = startLine(line)) != DS_ANS_OK) {
+        return res;
+    }
+    sendByte(line, DS_ROM_MATCH);
+    writeBuf(line, id, ROM_ID_SIZE);
+    sendByte(line, DS_SRC_READ);
+    readBuf(line, scratchpad, SCRATCHPAD_SIZE);
+    if (scratchpad[6] == 0xFF && scratchpad[7] == 0xFF) { // mast be 0x0C and 0x10 
+        res = DS_ANS_NOANS;
+    } else {
+        if (dallasCRC8(scratchpad, SCRATCHPAD_SIZE) != 0) {
+            res = DS_ANS_CRC;
+        }
+    }
+	return res;
+}
+//-----------------------------------------------------------------------------
+
+dsResult_t dsWriteData (lineOptions_t *line, uint8_t *id, uint8_t *data)
+{
+    dsResult_t res;
+    
+    if ((res = startLine(line)) != DS_ANS_OK) {
+        return res;
+    }
+    sendByte(line, DS_ROM_MATCH);
+    writeBuf(line, id, ROM_ID_SIZE);
+    sendByte(line, DS_SRC_WRITE);
+    writeBuf(line, data, 3);
+	return res;
+}
+//-----------------------------------------------------------------------------
+
+dsResult_t dsSaveToEEPROM (lineOptions_t *line, uint8_t *id)
+{
+    dsResult_t res;
+    
+    if ((res = startLine(line)) != DS_ANS_OK) {
+        return res;
+    }
+    sendByte(line, DS_ROM_MATCH);
+    writeBuf(line, id, ROM_ID_SIZE);
+    sendByte(line, DS_SRC_COPY);
+	return res;
+}
+//-----------------------------------------------------------------------------
+
 dsResult_t dsReadTemperature (lineOptions_t *line, sensorOptions_t *sensor)
 {
     dsResult_t res;
-    unsigned char scratchpad[9] = {0,0,0,0,0,0,0,0,0};
+    unsigned char scratchpad[SCRATCHPAD_SIZE];
     int tmp;
     
-    if ((res = startLine(line)) == DS_ANS_OK) {
-        sendByte(line, DS_ROM_MATCH);
-        writeBuf(line, sensor->id, ROM_ID_SIZE);
-        sendByte(line, DS_SRC_READ);
-        readBuf(line, scratchpad, sizeof(scratchpad));
-        if (scratchpad[6] == 0xFF && scratchpad[7] == 0xFF) { // mast be 0x0C and 0x10 
-            res = DS_ANS_NOANS;
-        } else {
-            if (dallasCRC8(scratchpad, 9) != 0) {
-                res = DS_ANS_CRC;
-            } else {
-                tmp = scratchpad[1];
-                tmp = (tmp << 8) | scratchpad[0];
-                tmp *= 100;
-                sensor->currentTemperature = tmp / 16;
-                sensor->num = scratchpad[3];
-            }
-        }
+    memset(scratchpad, 0, SCRATCHPAD_SIZE);
+    if ((res = dsReadScratchpad(line, sensor->id, scratchpad)) == DS_ANS_OK) {
+        tmp = scratchpad[1];
+        tmp = (tmp << 8) | scratchpad[0];
+        tmp *= 100;
+        sensor->currentTemperature = tmp / 16;
+        sensor->num = scratchpad[2];
+        sensor->num = (sensor->num << 8) | scratchpad[3];
     }
+    line->lastResult = res;
 	return res;
 }
 //-----------------------------------------------------------------------------
@@ -362,6 +407,7 @@ dsResult_t dsSearch(lineOptions_t *line, unsigned char rom[ROM_ID_SIZE])
     } else {
         res = DS_ANS_CRC;
     }
+    line->lastResult = res;
     return res;
 }
 //-----------------------------------------------------------------------------
@@ -385,11 +431,34 @@ dsResult_t dsFindAllId (lineOptions_t *line)
         }
     }
     line->sensorsCount = count;
+    line->lastResult = res;
     return res;
 }
 //-----------------------------------------------------------------------------
 
-
+dsResult_t dsWriteNum (lineOptions_t *line, uint8_t *id, uint16_t num)
+{
+    uint8_t data[3] = {num >> 8, num & 0xFF, DS_CONF_12_BITS};
+    dsResult_t res = DS_ANS_OK;    
+    unsigned char scratchpad[SCRATCHPAD_SIZE];
+        
+    if ((res = dsWriteData(line, id, data)) == DS_ANS_OK) {
+        if ((res = dsReadScratchpad (line, id, scratchpad)) == DS_ANS_OK) {
+            if (scratchpad[2] != (num >> 8) || scratchpad[3] != (num &0xFF) || scratchpad[4] != DS_CONF_12_BITS) {
+                res = DS_ANS_BAD_SENSOR; 
+            } else {
+                res = dsSaveToEEPROM(line, id);
+                sDelay(1000);
+                res = dsSaveToEEPROM(line, id);
+                sDelay(1000);
+                res = dsSaveToEEPROM(line, id);
+            }
+        }
+    }
+    line->lastResult = res;
+	return res;
+}
+//-----------------------------------------------------------------------------
 
 /*
 //-----------------------------------------------------------------------------
