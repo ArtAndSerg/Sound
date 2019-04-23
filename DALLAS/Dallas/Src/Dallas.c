@@ -419,6 +419,8 @@ dsResult_t dsFindAllId (lineOptions_t *line)
     int count = 0;
     
     line->lastDiscrepancy = 0;
+    
+    memset(rom, 0, ROM_ID_SIZE);
     for (int i = 0; i < SENSORS_PER_LINE_MAXCOUNT && res == DS_ANS_OK; i++) {
         res = dsSearch(line, rom);
         if (res == DS_ANS_OK || res == DS_ANS_DISABLED) {

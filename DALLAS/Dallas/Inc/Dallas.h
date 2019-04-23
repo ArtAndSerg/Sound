@@ -56,13 +56,14 @@ typedef struct
 
 typedef struct
 {
+    unsigned char num;
     sensorOptions_t sensor[SENSORS_PER_LINE_MAXCOUNT];    
-    int sensorsCount;
-    int setUpTime;
+    unsigned short sensorsCount;
+    unsigned short setUpTime;
     unsigned int ioPin;
     GPIO_TypeDef *ioPort;
     dsResult_t lastResult;    
-    int lastDiscrepancy;
+    unsigned char lastDiscrepancy;
 } lineOptions_t;
 
 dsResult_t dsGetID           (lineOptions_t *line, unsigned char *val);
@@ -70,5 +71,7 @@ dsResult_t dsReadTemperature (lineOptions_t *line, sensorOptions_t *sensor);
 dsResult_t dsConvertStart    (lineOptions_t *line);
 dsResult_t dsFindAllId       (lineOptions_t *line);
 dsResult_t dsWriteNum        (lineOptions_t *line, uint8_t *id, uint16_t num);
+dsResult_t dsSearch(lineOptions_t *line, unsigned char *romResult);
+dsResult_t dsReadScratchpad(lineOptions_t *line, uint8_t *id, uint8_t *scratchpad);
 
 #endif

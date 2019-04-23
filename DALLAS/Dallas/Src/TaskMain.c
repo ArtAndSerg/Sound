@@ -192,10 +192,12 @@ void initTaskMain(void)
 
 void processTaskMain(void)
 {
+    static uint8_t rom[ROM_ID_SIZE];
     int txLen = 0, baseNum, count;
     uint16_t crc;
-    static int currLine = 0;
+    static lineOptions_t *currLine = NULL;
     modbusResult_t mbRes;
+    dsResult_t dsRes;
     
  // 01 03 00 00 00 02 C4 0B
  // 0  1  2  3  4  5  6  7   
@@ -203,24 +205,82 @@ void processTaskMain(void)
     HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
     mbRes = modbusDataWait(&modbus, 1000);
     if (mbRes == MB_OK) {
+        memset((void*)modbusBuf, 0, sizeof(modbusBuf));
         HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);        
         modbusBuf[txLen++] = modbus.addr; // address
         modbusBuf[txLen++] = modbus.rxBuf[1];  // command
         if (modbus.rxBuf[1] == 6) { // write command
             if (modbus.rxBuf[3] == 0) { // register
                 if (modbus.rxBuf[5] < LINES_MAXCOUNT) {
-                    currLine = modbus.rxBuf[5] + 1; 
+                    currLine = &lines[modbus.rxBuf[5]]; 
                 } else {
-                    currLine = 0;
+                    currLine = NULL;
                 }
             }
             if (modbus.rxBuf[3] == 1 && modbus.rxBuf[5] == 0) {  // stop
-                currLine = 0;
+                currLine = NULL;
             }
             memcpy((void*)&modbusBuf[txLen], &modbus.rxBuf[2], 4); // register + value              
             txLen += 4;
+        } else if (modbus.rxBuf[1] == 16) { // Write Multiple Registers
+            baseNum = modbus.rxBuf[2];
+            baseNum = (baseNum << 8) | modbus.rxBuf[3];
+            if (modbus.rxBuf[5] < LINES_MAXCOUNT && modbus.rxBuf[6] == ROM_ID_SIZE && modbus.rxLen == 7 + ROM_ID_SIZE + 2) {
+                currLine = &lines[modbus.rxBuf[5]]; 
+                dsRes = dsWriteNum(currLine, &modbus.rxBuf[7], baseNum);
+                modbusBuf[txLen++] = modbus.rxBuf[2];
+                modbusBuf[txLen++] = modbus.rxBuf[3];
+                modbusBuf[txLen++] = (int)dsRes;
+                modbusBuf[txLen++] = modbus.rxBuf[5];
+            } else {
+                txLen += 4;
+            }
         } else if (modbus.rxBuf[1] == 3) { //read
-            if (modbus.rxBuf[3] == 0) { // register
+            if (modbus.rxBuf[2] == 0xFF) {
+                modbusBuf[txLen++] = 1 + ROM_ID_SIZE + 1 + SCRATCHPAD_SIZE + 1 + sizeof(currLine->setUpTime); //currLine + rom + SearchResult + SCRATCHPAD  + ReadResult + setUpTime
+                if (modbus.rxBuf[3] < LINES_MAXCOUNT) {
+                    currLine = &lines[modbus.rxBuf[3]]; 
+                    modbusBuf[txLen++] = currLine->num;
+                    if (modbus.rxBuf[4] == 0) {
+                        if (osSemaphoreWait(senorsSemHandle, 2 * TIME_FOR_CONVERTATION) == osOK) {
+                            dsRes = dsSearch(currLine, rom);
+                        } else {
+                            dsRes = DS_ANS_UNKNNOWN;
+                        }
+                    } else if (modbus.rxBuf[4] == 1) {
+                        dsRes = dsSearch(currLine, rom);
+                    } else {
+                        osSemaphoreRelease(senorsSemHandle);
+                        dsRes = DS_ANS_UNKNNOWN;
+                    }
+                    if (dsRes == DS_ANS_DISABLED) {
+                        osSemaphoreRelease(senorsSemHandle);
+                    }
+                    if (dsRes == DS_ANS_OK || dsRes == DS_ANS_DISABLED) {
+                        memcpy((void*)&modbusBuf[txLen], (void*)rom, ROM_ID_SIZE);
+                        txLen += ROM_ID_SIZE;
+                        modbusBuf[txLen++] = (int)dsRes;  // SearchResult
+                        dsRes = dsReadScratchpad (currLine, rom, &modbusBuf[txLen]);
+                        txLen += SCRATCHPAD_SIZE;
+                        modbusBuf[txLen++] = (int)dsRes;  // ReadResult
+                    } else {
+                        osSemaphoreRelease(senorsSemHandle);
+                        txLen += ROM_ID_SIZE;
+                        modbusBuf[txLen++] = (int)dsRes;  // SearchResult
+                        txLen += SCRATCHPAD_SIZE;
+                        modbusBuf[txLen++] = DS_ANS_UNKNNOWN; // ReadResult
+                    }
+                    modbusBuf[txLen++] = currLine->setUpTime << 8;
+                    modbusBuf[txLen++] = currLine->setUpTime & 0xFF;
+                } else {
+                    txLen += modbusBuf[txLen - 1];
+                }
+            } else if (modbus.rxBuf[2] == 0xFE) {
+                modbusBuf[txLen++] = 1 + SENSORS_PER_LINE_MAXCOUNT * sizeof(uint16_t);  
+                modbusBuf[txLen++] = currLine->num;
+                memcpy((void*)&modbusBuf[txLen], (void*)&savedSensNum[currLine->num], SENSORS_PER_LINE_MAXCOUNT * sizeof(uint16_t));
+                txLen += SENSORS_PER_LINE_MAXCOUNT * sizeof(uint16_t);
+            } else if (modbus.rxBuf[3] == 0) { // register
                 modbusBuf[txLen++] = 4;  // bytes count
                 modbusBuf[txLen++] = 0;  // data...
                 modbusBuf[txLen++] = 0;
@@ -233,14 +293,16 @@ void processTaskMain(void)
                 if (count > SENSORS_PER_LINE_MAXCOUNT) {
                     count = SENSORS_PER_LINE_MAXCOUNT;
                 }
-                if (currLine) {
-                    modbusBuf[txLen++] = count * sizeof(uint16_t);  // bytes count
+                modbusBuf[txLen++] = count * sizeof(uint16_t);  // bytes count
+                if (currLine != NULL) {
                     osSemaphoreWait(senorsSemHandle, osWaitForever);
                     for (int i = baseNum; i < baseNum + count; i++) {
-                        modbusBuf[txLen++] = temperatureBuf[currLine - 1][i] >> 8;
-                        modbusBuf[txLen++] = temperatureBuf[currLine - 1][i] & 0xFF;        
+                        modbusBuf[txLen++] = temperatureBuf[currLine->num][i] >> 8;
+                        modbusBuf[txLen++] = temperatureBuf[currLine->num][i] & 0xFF;        
                     }
                     osSemaphoreRelease(senorsSemHandle);
+                } else {
+                    txLen += count * sizeof(uint16_t);
                 }
             }
         }

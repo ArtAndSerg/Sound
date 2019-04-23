@@ -4,7 +4,7 @@ stlinkfoundProbes=
 CStepIntDis=_ 0
 LeaveTargetRunning=_ 0
 [DebugChecksum]
-Checksum=-42419145
+Checksum=-1202288649
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -49,7 +49,7 @@ Fmt3=modbus_t-rxLen	3	0
 Fmt4=sensorOptions_t-currentTemperature	3	0
 Fmt5=sensorOptions_t-num	3	0
 [array_types]
-Fmt0=uint8_t[130]	4	0
+Fmt0=uint8_t[130]	3	0
 [watch_formats]
 Fmt0={W}42:addr	4	0
 Fmt1={W}42:address	1	0

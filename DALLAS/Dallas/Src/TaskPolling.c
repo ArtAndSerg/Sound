@@ -18,6 +18,7 @@ void initTaskPolling(void)
     memset((void*)lines, 0, sizeof(lines));
     
     for (int i = 0; i < LINES_MAXCOUNT; i++) {
+        lines[i].num = i;
         for (int j = 0; j < SENSORS_PER_LINE_MAXCOUNT; j++) {
             lines[i].sensor[j].currentTemperature = 32767;
         }

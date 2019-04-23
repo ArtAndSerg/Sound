@@ -4,7 +4,7 @@
 #ifndef __MODBUS_H
 #define __MODBUS_H
 
-#define MODBUF_RX_BUF_SIZE  20  // mast be 1 byte more, than size of the biggest packet (for overflow detection)
+#define MODBUF_RX_BUF_SIZE  25  // mast be 1 byte more, than size of the biggest packet (for overflow detection)
 
 #include "stdint.h"
 #include "stdbool.h"
@@ -26,7 +26,7 @@ typedef enum {
 typedef struct {
     UART_HandleTypeDef *huart;
     uint8_t addr;
-    uint8_t rxLen;
+    int rxLen;
     uint8_t rxBuf[MODBUF_RX_BUF_SIZE];
     osSemaphoreId  dataRxSemHandle;
     char debugLevel;
